@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   Design system KAAFINANCE — thème violet/indigo
+   Typographie : Inter pour les chiffres, DM Sans pour le reste
+---------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-num: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* `canvas` plutôt que `base` : éviter la collision avec l'utilitaire
+     de taille de police `text-base` qui peindrait le texte en quasi-noir. */
+  --color-canvas: #0b0f1a;
+  --color-navbar: #0d1220;
+  --color-surface: #131929;
+  --color-elevated: #1c2333;
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-soft: rgba(255, 255, 255, 0.04);
+
+  --color-ink: #ffffff;
+  --color-muted: #9ca3af;
+  --color-faint: #6b7280;
+
+  --color-accent: #7c6fff;
+  --color-accent-dim: #6b5fe6;
+
+  --color-positive: #00e5a0;
+  --color-negative: #ff4d6a;
+}
+
+/* ----------------------------------------------------------------------------
+   Base
+---------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-elevated);
+    border-radius: 9999px;
+    border: 2px solid var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2b3450;
+  }
+}
