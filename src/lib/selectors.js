@@ -52,6 +52,42 @@ export function monthlySeries(transactions, n = 6, ref = new Date()) {
   })
 }
 
+/** Évolution day-by-day du Pocket Global au cours du mois de `ref`.
+ *  Le premier point porte la valeur initiale ; un point est ajouté pour
+ *  chaque jour où au moins une transaction a été enregistrée. */
+export function dailyPocketSeries(transactions, startValue, ref = new Date()) {
+  const year = ref.getFullYear()
+  const month = ref.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  const byDay = new Map()
+  for (const t of transactions) {
+    const d = new Date(t.date)
+    if (d.getFullYear() !== year || d.getMonth() !== month) continue
+    const day = d.getDate()
+    if (!byDay.has(day)) byDay.set(day, { income: 0, expense: 0 })
+    const acc = byDay.get(day)
+    if (t.type === 'income') acc.income += t.amount
+    else if (t.type === 'expense') acc.expense += t.amount
+  }
+
+  const series = [
+    { day: 1, value: startValue, income: 0, expense: 0, isStart: true },
+  ]
+  let running = startValue
+  const sortedDays = [...byDay.keys()].sort((a, b) => a - b)
+  for (const day of sortedDays) {
+    const { income, expense } = byDay.get(day)
+    running += income - expense
+    if (day === 1) {
+      series[0] = { day: 1, value: running, income, expense, isStart: false }
+    } else {
+      series.push({ day, value: running, income, expense, isStart: false })
+    }
+  }
+  return { series, daysInMonth, year, month }
+}
+
 /** Répartition par catégorie pour un type donné (dépense par défaut). */
 export function categoryBreakdown(transactions, type = 'expense') {
   const map = new Map()

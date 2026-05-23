@@ -6,14 +6,16 @@ import CashflowChart from './CashflowChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
+import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
 import { getCategory } from '../../lib/categories.js'
+import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
   budgetStatus,
   categoryBreakdown,
+  dailyPocketSeries,
   delta,
   filterByMonth,
-  monthlySeries,
   totals,
 } from '../../lib/selectors.js'
 
@@ -22,7 +24,34 @@ function barColor(ratio) {
 }
 
 export default function OverviewView({ month, onNavigate }) {
-  const { transactions, budgets, bankBalance, deleteTransaction } = useFinance()
+  const {
+    transactions,
+    budgets,
+    pockets,
+    cryptos,
+    cashBalance,
+    bankBalance,
+    deleteTransaction,
+  } = useFinance()
+
+  /* Valeur live du portefeuille crypto — utilisée pour reconstruire le
+     Pocket Global identique à <PocketGlobalCard />. */
+  const geckoIds = useMemo(
+    () => cryptos.map((c) => getCryptoMeta(c.coin).geckoId).filter(Boolean),
+    [cryptos],
+  )
+  const { prices } = useCryptoPrices(geckoIds)
+  const cryptoValue = useMemo(
+    () => portfolioValue(cryptos, prices),
+    [cryptos, prices],
+  )
+  const pocketGlobal = useMemo(() => {
+    const pocketsTotal = pockets.reduce(
+      (s, p) => s + (p.key === 'investissement' ? cryptoValue : p.amount),
+      0,
+    )
+    return pocketsTotal + cashBalance + bankBalance
+  }, [pockets, cryptoValue, cashBalance, bankBalance])
 
   const stats = useMemo(() => {
     const curKey = monthKey(month)
@@ -32,17 +61,20 @@ export default function OverviewView({ month, onNavigate }) {
     const curTx = filterByMonth(transactions, curKey)
     const cur = totals(curTx)
     const prev = totals(filterByMonth(transactions, prevKey))
-    const series = monthlySeries(transactions, 6, month)
+    /* Le Pocket Global affiché est « aujourd'hui ». Son état au début du
+       mois = total courant − net des transactions du mois en cours. */
+    const startValue = pocketGlobal - cur.net
+    const dailySeries = dailyPocketSeries(transactions, startValue, month)
     return {
       cur,
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
-      series,
+      dailySeries,
       breakdown: categoryBreakdown(curTx, 'expense'),
       budgetState: budgetStatus(budgets, transactions, curKey),
       recent: curTx.slice(0, 6),
     }
-  }, [transactions, budgets, month])
+  }, [transactions, budgets, month, pocketGlobal])
 
   const recent = stats.recent
 
@@ -97,12 +129,12 @@ export default function OverviewView({ month, onNavigate }) {
           <div className="mb-2 flex items-center justify-between">
             <div>
               <h2 className="font-display text-base font-semibold">
-                Évolution du solde
+                Évolution du mois
               </h2>
-              <p className="text-xs text-muted">Solde cumulé sur 6 mois</p>
+              <p className="text-xs text-muted">Basé sur votre Pocket Global</p>
             </div>
           </div>
-          <CashflowChart data={stats.series} />
+          <CashflowChart data={stats.dailySeries} />
         </div>
 
         <div className="rounded-2xl border border-line bg-surface p-5">
