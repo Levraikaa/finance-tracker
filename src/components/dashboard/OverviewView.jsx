@@ -124,9 +124,6 @@ export default function OverviewView({ month, onNavigate }) {
         />
       </div>
 
-      {/* Moyenne nourriture / jour — basée sur la date du jour */}
-      <FoodAverageCard />
-
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="rounded-2xl border border-line bg-surface p-5 lg:col-span-2">
@@ -141,12 +138,16 @@ export default function OverviewView({ month, onNavigate }) {
           <CashflowChart data={stats.dailySeries} />
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-display text-base font-semibold">
-            Dépenses du mois
-          </h2>
-          <p className="mb-5 text-xs text-muted">Répartition par catégorie</p>
-          <CategoryDonut data={stats.breakdown} />
+        <div className="flex flex-col gap-5">
+          <div className="rounded-2xl border border-line bg-surface p-5">
+            <h2 className="font-display text-base font-semibold">
+              Dépenses du mois
+            </h2>
+            <p className="mb-5 text-xs text-muted">Répartition par catégorie</p>
+            <CategoryDonut data={stats.breakdown} />
+          </div>
+          {/* Moyenne nourriture / jour — basée sur la date du jour */}
+          <FoodAverageCard />
         </div>
       </div>
 
