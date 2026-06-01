@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useMemo } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage.js'
 import { seedBudgets, seedTransactions } from '../lib/sampleData.js'
-import { seedPockets } from '../lib/pockets.js'
+import { migratePockets, seedPockets } from '../lib/pockets.js'
 import { totals } from '../lib/selectors.js'
 import { uid } from '../lib/format.js'
 
@@ -50,6 +50,12 @@ export function FinanceProvider({ children }) {
     'kaafinance.pockets.v1',
     seedPockets,
   )
+
+  /* Migration des anciennes clés (« autre » -> « fondsMonetaires »).
+     S'exécute une seule fois quand la donnée locale en a besoin. */
+  useEffect(() => {
+    setPockets((prev) => migratePockets(prev))
+  }, [setPockets])
   const [cryptos, setCryptos] = useLocalStorage(
     'kaafinance.cryptos.v2',
     () => [],
@@ -177,6 +183,45 @@ export function FinanceProvider({ children }) {
     [setCashMovements],
   )
 
+  /* Met à jour directement le solde d'un pocket (édition manuelle). */
+  const updatePocketAmount = useCallback(
+    (key, amount) => {
+      const value = Math.max(0, Number(amount) || 0)
+      setPockets((prev) =>
+        prev.map((p) => (p.key === key ? { ...p, amount: value } : p)),
+      )
+    },
+    [setPockets],
+  )
+
+  /* Force le solde Cash à une valeur cible : enregistre un mouvement
+     correctif (ajout ou retrait) égal à la différence avec le solde actuel,
+     pour conserver un historique cohérent. */
+  const setCashBalance = useCallback(
+    (target) => {
+      const value = Math.max(0, Number(target) || 0)
+      setCashMovements((prev) => {
+        const current = prev.reduce(
+          (s, m) => s + (m.type === 'add' ? m.amount : -m.amount),
+          0,
+        )
+        const diff = value - current
+        if (diff === 0) return prev
+        return [
+          {
+            id: uid(),
+            type: diff > 0 ? 'add' : 'remove',
+            amount: Math.abs(diff),
+            description: 'Ajustement manuel du solde',
+            date: new Date().toISOString(),
+          },
+          ...prev,
+        ]
+      })
+    },
+    [setCashMovements],
+  )
+
   /* Enregistre le solde de départ et l'horodate. */
   const setStartingBalance = useCallback(
     (amount) => {
@@ -255,6 +300,8 @@ export function FinanceProvider({ children }) {
       buyMoreCrypto,
       deleteCrypto,
       addCashMovement,
+      setCashBalance,
+      updatePocketAmount,
       setStartingBalance,
       resetData,
       clearData,
@@ -277,6 +324,8 @@ export function FinanceProvider({ children }) {
       buyMoreCrypto,
       deleteCrypto,
       addCashMovement,
+      setCashBalance,
+      updatePocketAmount,
       setStartingBalance,
       resetData,
       clearData,
