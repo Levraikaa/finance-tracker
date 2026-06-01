@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
+  ArrowLeftRight,
   Banknote,
   Bitcoin,
   Check,
@@ -15,6 +16,7 @@ import PortfolioChart from './PortfolioChart.jsx'
 import CryptoCard from './CryptoCard.jsx'
 import CryptoModal from './CryptoModal.jsx'
 import BuyMoreModal from './BuyMoreModal.jsx'
+import TransferModal from './TransferModal.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useLocalStorage } from '../../hooks/useLocalStorage.js'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
@@ -52,8 +54,16 @@ function PriceStatus({ status, lastUpdated }) {
   )
 }
 
-/* Carte d'un pocket avec édition inline du solde + APY optionnel. */
-function PocketEditCard({ icon: Icon, name, amount, onSave, showApy = false }) {
+/* Carte d'un pocket avec édition inline du solde + APY optionnel.
+   `onTransfer` reçoit la clé de la destination pré-remplie. */
+function PocketEditCard({
+  icon: Icon,
+  name,
+  amount,
+  onSave,
+  onTransfer,
+  showApy = false,
+}) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef(null)
@@ -109,14 +119,26 @@ function PocketEditCard({ icon: Icon, name, amount, onSave, showApy = false }) {
           <p className="truncate text-sm font-medium text-ink">{name}</p>
         </div>
         {!editing && (
-          <button
-            type="button"
-            onClick={startEdit}
-            aria-label={`Modifier le solde de ${name}`}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line bg-canvas text-muted transition-colors hover:border-accent/40 hover:text-accent"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {onTransfer && (
+              <button
+                type="button"
+                onClick={onTransfer}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                Transférer
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={startEdit}
+              aria-label={`Modifier le solde de ${name}`}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-canvas text-muted transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
 
@@ -237,6 +259,7 @@ export default function InvestmentsView() {
   const [history, setHistory] = useLocalStorage('kaafinance.cryptoHistory.v2', [])
   const [modal, setModal] = useState(null)
   const [buyMore, setBuyMore] = useState(null)
+  const [transferTo, setTransferTo] = useState(null)
 
   const pocketAmount = (key) =>
     pockets.find((p) => p.key === key)?.amount ?? 0
@@ -308,6 +331,12 @@ export default function InvestmentsView() {
           onClose={() => setBuyMore(null)}
         />
       )}
+      {transferTo && (
+        <TransferModal
+          defaultTo={transferTo}
+          onClose={() => setTransferTo(null)}
+        />
+      )}
     </>
   )
 
@@ -328,12 +357,14 @@ export default function InvestmentsView() {
           name="Cash"
           amount={cashBalance}
           onSave={setCashBalance}
+          onTransfer={() => setTransferTo('cash')}
         />
         <PocketEditCard
           icon={Coins}
           name="Fonds monétaires flexibles"
           amount={pocketAmount('fondsMonetaires')}
           onSave={(v) => updatePocketAmount('fondsMonetaires', v)}
+          onTransfer={() => setTransferTo('fondsMonetaires')}
           showApy
         />
         <PocketEditCard
@@ -341,12 +372,14 @@ export default function InvestmentsView() {
           name="Cadeau"
           amount={pocketAmount('cadeau')}
           onSave={(v) => updatePocketAmount('cadeau', v)}
+          onTransfer={() => setTransferTo('cadeau')}
         />
         <PocketEditCard
           icon={Plane}
           name="Voyage"
           amount={pocketAmount('voyage')}
           onSave={(v) => updatePocketAmount('voyage', v)}
+          onTransfer={() => setTransferTo('voyage')}
         />
       </div>
     </section>

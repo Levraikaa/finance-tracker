@@ -70,6 +70,13 @@ export function FinanceProvider({ children }) {
     'kaafinance.startingBalance.v1',
     EMPTY_BALANCE,
   )
+  /* Ajustements internes au solde bancaire (transferts vers/depuis un
+     pocket ou le cash). Conservés hors du flux des transactions pour ne
+     pas polluer l'onglet Transactions. */
+  const [bankAdjustments, setBankAdjustments] = useLocalStorage(
+    'kaafinance.bankAdjustments.v1',
+    () => [],
+  )
 
   const addTransaction = useCallback(
     (data) => {
@@ -242,11 +249,80 @@ export function FinanceProvider({ children }) {
     [cashMovements],
   )
 
+  const bankAdjustmentsTotal = useMemo(
+    () => bankAdjustments.reduce((s, a) => s + (Number(a.delta) || 0), 0),
+    [bankAdjustments],
+  )
+
   /* Solde du compte : solde de départ + somme de toutes les transactions
-     (revenus ajoutés, dépenses déduites). Recalculé en temps réel. */
+     (revenus ajoutés, dépenses déduites) + ajustements internes
+     (transferts). Recalculé en temps réel. */
   const bankBalance = useMemo(
-    () => (startingBalance?.amount ?? 0) + totals(transactions).balance,
-    [startingBalance, transactions],
+    () =>
+      (startingBalance?.amount ?? 0) +
+      totals(transactions).balance +
+      bankAdjustmentsTotal,
+    [startingBalance, transactions, bankAdjustmentsTotal],
+  )
+
+  /* Transfert atomique entre deux « comptes ». Les comptes possibles :
+       - 'bank'             → solde bancaire (via ajustement interne)
+       - 'cash'             → cash physique (via mouvement de caisse)
+       - clé de pocket      → fondsMonetaires / cadeau / voyage
+     Le pocket Investissement n'est pas transférable (valeur live). */
+  const transferFunds = useCallback(
+    (from, to, amount) => {
+      const value = Math.abs(Number(amount)) || 0
+      if (value <= 0 || from === to) return false
+      const stamp = new Date().toISOString()
+
+      const debit = (account) => {
+        if (account === 'bank') {
+          setBankAdjustments((prev) => [
+            { id: uid(), delta: -value, description: `Transfert vers ${to}`, date: stamp },
+            ...prev,
+          ])
+        } else if (account === 'cash') {
+          setCashMovements((prev) => [
+            { id: uid(), type: 'remove', amount: value, description: `Transfert vers ${to}`, date: stamp },
+            ...prev,
+          ])
+        } else {
+          setPockets((prev) =>
+            prev.map((p) =>
+              p.key === account
+                ? { ...p, amount: Math.max(0, p.amount - value) }
+                : p,
+            ),
+          )
+        }
+      }
+
+      const credit = (account) => {
+        if (account === 'bank') {
+          setBankAdjustments((prev) => [
+            { id: uid(), delta: value, description: `Transfert depuis ${from}`, date: stamp },
+            ...prev,
+          ])
+        } else if (account === 'cash') {
+          setCashMovements((prev) => [
+            { id: uid(), type: 'add', amount: value, description: `Transfert depuis ${from}`, date: stamp },
+            ...prev,
+          ])
+        } else {
+          setPockets((prev) =>
+            prev.map((p) =>
+              p.key === account ? { ...p, amount: p.amount + value } : p,
+            ),
+          )
+        }
+      }
+
+      debit(from)
+      credit(to)
+      return true
+    },
+    [setBankAdjustments, setCashMovements, setPockets],
   )
 
   const resetData = useCallback(() => {
@@ -255,6 +331,7 @@ export function FinanceProvider({ children }) {
     setPockets(seedPockets())
     setCryptos([])
     setCashMovements([])
+    setBankAdjustments([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
     setTransactions,
@@ -262,6 +339,7 @@ export function FinanceProvider({ children }) {
     setPockets,
     setCryptos,
     setCashMovements,
+    setBankAdjustments,
     setStartingBalanceState,
   ])
 
@@ -271,6 +349,7 @@ export function FinanceProvider({ children }) {
     setPockets(seedPockets())
     setCryptos([])
     setCashMovements([])
+    setBankAdjustments([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
     setTransactions,
@@ -278,6 +357,7 @@ export function FinanceProvider({ children }) {
     setPockets,
     setCryptos,
     setCashMovements,
+    setBankAdjustments,
     setStartingBalanceState,
   ])
 
@@ -302,6 +382,7 @@ export function FinanceProvider({ children }) {
       addCashMovement,
       setCashBalance,
       updatePocketAmount,
+      transferFunds,
       setStartingBalance,
       resetData,
       clearData,
@@ -326,6 +407,7 @@ export function FinanceProvider({ children }) {
       addCashMovement,
       setCashBalance,
       updatePocketAmount,
+      transferFunds,
       setStartingBalance,
       resetData,
       clearData,
