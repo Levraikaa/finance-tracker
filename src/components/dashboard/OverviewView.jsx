@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
+import FoodAverageCard from './FoodAverageCard.jsx'
 import CashflowChart from './CashflowChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
@@ -122,6 +123,9 @@ export default function OverviewView({ month, onNavigate }) {
           }}
         />
       </div>
+
+      {/* Moyenne nourriture / jour — basée sur la date du jour */}
+      <FoodAverageCard />
 
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
