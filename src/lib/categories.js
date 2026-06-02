@@ -6,18 +6,25 @@
    graphiques et des budgets — c'est de l'argent récupéré, pas gagné. */
 export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
 
+/* `hidden` = catégorie héritée, conservée pour afficher d'anciennes
+   transactions mais retirée des sélecteurs de saisie. */
 export const CATEGORIES = {
-  salaire: { label: 'Salaire', type: 'income', icon: 'Wallet' },
   chomage: { label: 'Chômage', type: 'income', icon: 'Umbrella' },
   irysAgency: { label: 'Irys Agency', type: 'income', icon: 'Briefcase' },
-  autres: { label: 'Autres', type: 'income', icon: 'CircleDashed' },
   black: { label: 'Black', type: 'income', icon: 'Banknote' },
-  remboursement: { label: 'Remboursement', type: 'income', icon: 'RotateCcw' },
   remboursementRecu: {
     label: 'Remboursement reçu',
     type: 'income',
     icon: 'Undo2',
     excludedFromStats: true,
+  },
+  autres: { label: 'Autre', type: 'income', icon: 'CircleDashed' },
+  salaire: { label: 'Salaire', type: 'income', icon: 'Wallet', hidden: true },
+  remboursement: {
+    label: 'Remboursement',
+    type: 'income',
+    icon: 'RotateCcw',
+    hidden: true,
   },
 
   alimentation: { label: 'Alimentation', type: 'expense', icon: 'UtensilsCrossed' },
@@ -33,8 +40,10 @@ export const CATEGORIES = {
 
 export const CATEGORY_KEYS = Object.keys(CATEGORIES)
 
+/* Liste affichée dans le sélecteur de revenu (hors catégories
+   héritées). L'ordre = ordre d'affichage dans le picker. */
 export const INCOME_CATEGORIES = CATEGORY_KEYS.filter(
-  (k) => CATEGORIES[k].type === 'income',
+  (k) => CATEGORIES[k].type === 'income' && !CATEGORIES[k].hidden,
 )
 export const EXPENSE_CATEGORIES = CATEGORY_KEYS.filter(
   (k) => CATEGORIES[k].type === 'expense',
