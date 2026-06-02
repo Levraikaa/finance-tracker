@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage.js'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
+import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
+import { getCategoryColor } from '../../constants/categories.js'
 import { formatCurrency, uid } from '../../lib/format.js'
 
 const STORAGE_KEY = 'kaa_abonnements'
+const DEFAULT_CATEGORY = 'abonnements'
 
 const CURRENCIES = ['EUR', 'IDR']
 const METHODS = [
@@ -14,14 +17,17 @@ const METHODS = [
 
 const METHOD_BY_ID = Object.fromEntries(METHODS.map((m) => [m.id, m]))
 
-/* Pré-remplissage demandé : 5 abonnements de référence.
-   Modifiables et supprimables ensuite par l'utilisateur. */
+/* Pré-remplissage : abonnements de référence. Modifiables et
+   supprimables ensuite par l'utilisateur. La majorité tombe sous
+   « Abonnements », sauf Salle de sport qui pointe vers « Sport »
+   pour que le débit alimente directement le budget Sport. */
 const DEFAULTS = [
-  { name: 'Loyer', amount: 0, currency: 'EUR', day: 1, method: 'compte' },
-  { name: 'Scooter', amount: 0, currency: 'IDR', day: 5, method: 'cash' },
-  { name: 'Revolut Metal', amount: 0, currency: 'EUR', day: 10, method: 'compte' },
-  { name: 'Forfait téléphone', amount: 0, currency: 'EUR', day: 15, method: 'compte' },
-  { name: 'iTunes', amount: 0, currency: 'EUR', day: 20, method: 'compte' },
+  { name: 'Loyer', amount: 0, currency: 'EUR', day: 1, method: 'compte', category: 'abonnements' },
+  { name: 'Scooter', amount: 0, currency: 'IDR', day: 5, method: 'cash', category: 'abonnements' },
+  { name: 'Revolut Metal', amount: 0, currency: 'EUR', day: 10, method: 'compte', category: 'abonnements' },
+  { name: 'Forfait téléphone', amount: 0, currency: 'EUR', day: 15, method: 'compte', category: 'abonnements' },
+  { name: 'iTunes', amount: 0, currency: 'EUR', day: 20, method: 'compte', category: 'abonnements' },
+  { name: 'Salle de sport', amount: 0, currency: 'EUR', day: 1, method: 'compte', category: 'sport' },
 ]
 
 const seedSubscriptions = () =>
@@ -57,13 +63,23 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
   const [currency, setCurrency] = useState(initial?.currency ?? 'EUR')
   const [day, setDay] = useState(String(initial?.day ?? 1))
   const [method, setMethod] = useState(initial?.method ?? 'compte')
+  const [category, setCategory] = useState(
+    initial?.category ?? DEFAULT_CATEGORY,
+  )
 
   const submit = (e) => {
     e.preventDefault()
     const a = parseFloat(String(amount).replace(',', '.'))
     const d = Math.min(31, Math.max(1, parseInt(day, 10) || 1))
     if (!name.trim() || !Number.isFinite(a) || a < 0) return
-    onSubmit({ name: name.trim(), amount: a, currency, day: d, method })
+    onSubmit({
+      name: name.trim(),
+      amount: a,
+      currency,
+      day: d,
+      method,
+      category,
+    })
   }
 
   return (
@@ -129,7 +145,7 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
             className={`${FIELD} font-num`}
           />
         </div>
-        <div className="lg:col-span-2">
+        <div>
           <label className="mb-1 block text-xs font-medium text-muted">
             Moyen de paiement
           </label>
@@ -141,6 +157,22 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
             {METHODS.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted">
+            Catégorie
+          </label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className={FIELD}
+          >
+            {EXPENSE_CATEGORIES.map((key) => (
+              <option key={key} value={key}>
+                {CATEGORIES[key].label}
               </option>
             ))}
           </select>
@@ -169,6 +201,9 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
 
 function SubscriptionRow({ sub, fx, onEdit, onDelete }) {
   const method = METHOD_BY_ID[sub.method] ?? METHODS[0]
+  const categoryKey = sub.category || DEFAULT_CATEGORY
+  const categoryLabel = getCategory(categoryKey).label
+  const categoryColor = getCategoryColor(categoryKey)
   const eur = toEur(sub.amount, sub.currency, fx.rate)
 
   return (
@@ -197,7 +232,16 @@ function SubscriptionRow({ sub, fx, onEdit, onDelete }) {
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <span
+            className="rounded-lg px-2 py-1 text-xs font-semibold"
+            style={{
+              backgroundColor: `${categoryColor}26`,
+              color: categoryColor,
+            }}
+          >
+            {categoryLabel}
+          </span>
           <span
             className="rounded-lg px-2 py-1 text-xs font-semibold"
             style={{

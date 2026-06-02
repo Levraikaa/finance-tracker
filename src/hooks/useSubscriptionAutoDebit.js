@@ -86,6 +86,8 @@ export function useSubscriptionAutoDebit() {
         name: sub.name,
         amount: eurAmount,
         method: sub.method,
+        /* Fallback pour les abonnements antérieurs au champ catégorie. */
+        category: sub.category || 'abonnements',
       })
 
       log = {
