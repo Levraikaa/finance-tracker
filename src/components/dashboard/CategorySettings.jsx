@@ -4,13 +4,80 @@ import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
 
+/* Palette fixée pour le color picker (10 teintes alignées avec le
+   design system de l'app). */
+const PALETTE = [
+  '#7C6FFF',
+  '#00E5A0',
+  '#FF4D6A',
+  '#FFB84D',
+  '#F97316',
+  '#3B82F6',
+  '#69C9D0',
+  '#A78BFA',
+  '#E1306C',
+  '#10B981',
+]
+
+function ColorPicker({ value, onChange, onClose }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose()
+    }
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label="Choisir une couleur"
+      className="absolute left-0 top-full z-30 mt-2 grid w-44 grid-cols-5 gap-2 rounded-xl border border-line bg-elevated p-3 shadow-xl shadow-black/40"
+    >
+      {PALETTE.map((c) => {
+        const active = c.toLowerCase() === String(value).toLowerCase()
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => {
+              onChange(c)
+              onClose()
+            }}
+            aria-label={`Couleur ${c}`}
+            className="grid h-7 w-7 place-items-center rounded-full transition-transform hover:scale-110"
+            style={{
+              backgroundColor: c,
+              boxShadow: active
+                ? '0 0 0 2px rgba(255,255,255,0.9)'
+                : '0 0 0 1px rgba(255,255,255,0.06)',
+            }}
+          >
+            {active && <Check className="h-3.5 w-3.5 text-white" />}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function CategoryRow({ categoryKey }) {
-  const { getDisplay, renameCategory, resetCategory, overrides } =
+  const { getDisplay, renameCategory, recolorCategory, resetCategory, overrides } =
     useCategoryOverrides()
   const disp = getDisplay(categoryKey)
   const meta = getCategory(categoryKey)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(disp.name)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const inputRef = useRef(null)
   const customized = Boolean(overrides[categoryKey])
 
@@ -43,16 +110,28 @@ function CategoryRow({ categoryKey }) {
 
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas p-3">
-      <span
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
-        style={{
-          backgroundColor: disp.color,
-          boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
-        }}
-        aria-hidden="true"
-      >
-        <CategoryIcon name={meta.icon} className="h-4 w-4 text-white" />
-      </span>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-label={`Choisir la couleur de ${disp.name}`}
+          aria-expanded={pickerOpen}
+          className="grid h-9 w-9 place-items-center rounded-full transition-transform hover:scale-105"
+          style={{
+            backgroundColor: disp.color,
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
+          }}
+        >
+          <CategoryIcon name={meta.icon} className="h-4 w-4 text-white" />
+        </button>
+        {pickerOpen && (
+          <ColorPicker
+            value={disp.color}
+            onChange={(c) => recolorCategory(categoryKey, c)}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         {editing ? (
