@@ -56,6 +56,24 @@ export function FinanceProvider({ children }) {
   useEffect(() => {
     setPockets((prev) => migratePockets(prev))
   }, [setPockets])
+
+  /* Migration des revenus historiques : la catégorie « Salaire » a
+     été remplacée par « Chômage » dans le picker. On rebadge les
+     transactions existantes pour qu'elles soient à nouveau comptées
+     dans le total Revenus du mois et la ventilation par source. */
+  useEffect(() => {
+    setTransactions((prev) => {
+      let mutated = false
+      const next = prev.map((t) => {
+        if (t.type === 'income' && t.category === 'salaire') {
+          mutated = true
+          return { ...t, category: 'chomage' }
+        }
+        return t
+      })
+      return mutated ? next : prev
+    })
+  }, [setTransactions])
   const [cryptos, setCryptos] = useLocalStorage(
     'kaafinance.cryptos.v2',
     () => [],
