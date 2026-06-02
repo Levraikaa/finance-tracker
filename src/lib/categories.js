@@ -30,7 +30,7 @@ export const CATEGORIES = {
   alimentation: { label: 'Alimentation', type: 'expense', icon: 'UtensilsCrossed' },
   logement: { label: 'Logement', type: 'expense', icon: 'House' },
   transport: { label: 'Transport', type: 'expense', icon: 'Car' },
-  loisirs: { label: 'Loisirs', type: 'expense', icon: 'Gamepad2' },
+  loisirs: { label: 'Autre', type: 'expense', icon: 'Gamepad2' },
   shopping: { label: 'Shopping', type: 'expense', icon: 'ShoppingBag' },
   sante: { label: 'Santé', type: 'expense', icon: 'HeartPulse' },
   sport: { label: 'Sport', type: 'expense', icon: 'Dumbbell' },

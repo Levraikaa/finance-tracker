@@ -8,9 +8,8 @@ import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
+import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
-import { getCategory } from '../../lib/categories.js'
-import { getCategoryColor } from '../../constants/categories.js'
 import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
@@ -36,6 +35,7 @@ export default function OverviewView({ month, onNavigate }) {
     bankBalance,
     deleteTransaction,
   } = useFinance()
+  const { getDisplay } = useCategoryOverrides()
 
   /* Valeur live du portefeuille crypto — utilisée pour reconstruire le
      Pocket Global identique à <PocketGlobalCard />. */
@@ -194,8 +194,8 @@ export default function OverviewView({ month, onNavigate }) {
               </p>
             )}
             {stats.budgetState.slice(0, 5).map((b) => {
-              const cat = getCategory(b.category)
-              const color = getCategoryColor(b.category)
+              const disp = getDisplay(b.category)
+              const color = disp.color
               return (
                 <div key={b.id}>
                   <div className="flex items-center justify-between text-sm">
@@ -204,7 +204,7 @@ export default function OverviewView({ month, onNavigate }) {
                         className="h-2 w-2 rounded-[3px]"
                         style={{ backgroundColor: color }}
                       />
-                      <span style={{ color }}>{cat.label}</span>
+                      <span style={{ color }}>{disp.name}</span>
                     </span>
                     <span className="font-num tabular-nums text-muted">
                       {formatCurrency(b.spent, { compact: true })} /{' '}

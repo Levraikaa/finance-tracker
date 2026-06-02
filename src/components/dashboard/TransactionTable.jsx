@@ -1,19 +1,8 @@
 import { Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { getCategory, isReimbursement } from '../../lib/categories.js'
-import { CATEGORY_COLORS } from '../../constants/categories.js'
+import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { formatCurrency, formatDateShort } from '../../lib/format.js'
-
-/* Pastille d'icône : couleur de la catégorie pour les dépenses,
-   amber pour les remboursements reçus, accent pour les autres revenus. */
-function pillStyle(category, isReimbursement) {
-  if (isReimbursement) {
-    return { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
-  }
-  const color = CATEGORY_COLORS[category]
-  if (!color) return null
-  return { backgroundColor: `${color}26`, color }
-}
 
 /* Liste de transactions réutilisable (aperçu + vue complète). */
 export default function TransactionTable({
@@ -29,13 +18,24 @@ export default function TransactionTable({
     )
   }
 
+  return <TransactionList transactions={transactions} onDelete={onDelete} />
+}
+
+function TransactionList({ transactions, onDelete }) {
+  const { getDisplay } = useCategoryOverrides()
+
   return (
     <ul className="divide-y divide-line-soft">
       {transactions.map((t) => {
         const cat = getCategory(t.category)
+        const disp = getDisplay(t.category)
         const income = t.type === 'income'
         const reimbursement = isReimbursement(t.category)
-        const pill = pillStyle(t.category, reimbursement)
+        const pill = reimbursement
+          ? { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
+          : cat.type === 'expense'
+          ? { backgroundColor: `${disp.color}26`, color: disp.color }
+          : null
         return (
           <li key={t.id} className="group flex items-center gap-3 py-3">
             <span
@@ -73,7 +73,7 @@ export default function TransactionTable({
                 )}
               </div>
               <p className="truncate text-xs text-muted">
-                {cat.label} · {formatDateShort(t.date)}
+                {disp.name} · {formatDateShort(t.date)}
               </p>
             </div>
             <span

@@ -11,6 +11,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import CashModal from './CashModal.jsx'
+import CategorySettings from './CategorySettings.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { formatCurrency, formatDate } from '../../lib/format.js'
 
@@ -215,6 +216,9 @@ export default function SettingsView() {
           </div>
         </div>
       </section>
+
+      {/* Gestion des catégories */}
+      <CategorySettings />
 
       {/* Gestion des données */}
       <section className="rounded-2xl border border-line bg-surface p-6">

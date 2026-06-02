@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatCurrency, formatPercent } from '../../lib/format.js'
-import { getCategoryColor } from '../../constants/categories.js'
+import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 
 /* Anneau de répartition des dépenses par catégorie. */
 const SIZE = 180
@@ -10,6 +10,7 @@ const CIRC = 2 * Math.PI * RADIUS
 
 export default function CategoryDonut({ data }) {
   const [active, setActive] = useState(null)
+  const { getDisplay } = useCategoryOverrides()
   const total = data.reduce((s, d) => s + d.amount, 0)
 
   if (!data.length || total === 0) {
@@ -48,7 +49,7 @@ export default function CategoryDonut({ data }) {
               cy={SIZE / 2}
               r={RADIUS}
               fill="none"
-              stroke={getCategoryColor(seg.category)}
+              stroke={getDisplay(seg.category).color}
               strokeWidth={STROKE}
               strokeDasharray={`${seg.dash} ${CIRC - seg.dash}`}
               strokeDashoffset={seg.offset}
@@ -62,7 +63,7 @@ export default function CategoryDonut({ data }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted">
-            {focused ? focused.meta.label : 'Total dépenses'}
+            {focused ? getDisplay(focused.category).name : 'Total dépenses'}
           </span>
           <span className="font-num text-xl font-bold tracking-tight">
             {formatCurrency(focused ? focused.amount : total, { compact: true })}
@@ -76,7 +77,9 @@ export default function CategoryDonut({ data }) {
       </div>
 
       <ul className="w-full space-y-2.5">
-        {data.map((d, i) => (
+        {data.map((d, i) => {
+          const disp = getDisplay(d.category)
+          return (
           <li
             key={d.category}
             onMouseEnter={() => setActive(i)}
@@ -85,10 +88,10 @@ export default function CategoryDonut({ data }) {
           >
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: getCategoryColor(d.category) }}
+              style={{ backgroundColor: disp.color }}
             />
             <span className="flex-1 truncate text-sm text-ink">
-              {d.meta.label}
+              {disp.name}
             </span>
             <span className="font-num text-sm tabular-nums text-muted">
               {formatPercent(d.share, 0)}
@@ -97,7 +100,8 @@ export default function CategoryDonut({ data }) {
               {formatCurrency(d.amount, { compact: true })}
             </span>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )

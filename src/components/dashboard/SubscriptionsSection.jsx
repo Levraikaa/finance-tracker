@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage.js'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
-import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
-import { getCategoryColor } from '../../constants/categories.js'
+import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
+import { EXPENSE_CATEGORIES } from '../../lib/categories.js'
 import { formatCurrency, uid } from '../../lib/format.js'
 
 const STORAGE_KEY = 'kaa_abonnements'
@@ -55,7 +55,7 @@ function toEur(amount, currency, idrRate) {
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-accent/60 [color-scheme:dark]'
 
-function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
+function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel, getDisplay }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [amount, setAmount] = useState(
     initial?.amount != null ? String(initial.amount) : '',
@@ -172,7 +172,7 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
           >
             {EXPENSE_CATEGORIES.map((key) => (
               <option key={key} value={key}>
-                {CATEGORIES[key].label}
+                {getDisplay(key).name}
               </option>
             ))}
           </select>
@@ -199,11 +199,12 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
   )
 }
 
-function SubscriptionRow({ sub, fx, onEdit, onDelete }) {
+function SubscriptionRow({ sub, fx, onEdit, onDelete, getDisplay }) {
   const method = METHOD_BY_ID[sub.method] ?? METHODS[0]
   const categoryKey = sub.category || DEFAULT_CATEGORY
-  const categoryLabel = getCategory(categoryKey).label
-  const categoryColor = getCategoryColor(categoryKey)
+  const disp = getDisplay(categoryKey)
+  const categoryLabel = disp.name
+  const categoryColor = disp.color
   const eur = toEur(sub.amount, sub.currency, fx.rate)
 
   return (
@@ -286,6 +287,7 @@ export default function SubscriptionsSection() {
   const [subs, setSubs] = useLocalStorage(STORAGE_KEY, seedSubscriptions)
   const [mode, setMode] = useState(null) // null | 'add' | { id }
   const fx = useIdrRate()
+  const { getDisplay } = useCategoryOverrides()
 
   /* Migration unique : les abonnements créés avant le champ catégorie
      se retrouvent rattachés par défaut à « Abonnements / Charges ». */
@@ -374,6 +376,7 @@ export default function SubscriptionsSection() {
             onSubmit={addSub}
             onCancel={() => setMode(null)}
             submitLabel="Ajouter"
+            getDisplay={getDisplay}
           />
         </div>
       )}
@@ -385,6 +388,7 @@ export default function SubscriptionsSection() {
             onSubmit={(data) => updateSub(editingSub.id, data)}
             onCancel={() => setMode(null)}
             submitLabel="Mettre à jour"
+            getDisplay={getDisplay}
           />
         </div>
       )}
@@ -402,6 +406,7 @@ export default function SubscriptionsSection() {
             fx={fx}
             onEdit={(s) => setMode({ id: s.id })}
             onDelete={deleteSub}
+            getDisplay={getDisplay}
           />
         ))}
       </ul>

@@ -3,13 +3,14 @@ import { Plus, Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import SubscriptionsSection from './SubscriptionsSection.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
+import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
-import { getCategoryColor } from '../../constants/categories.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import { budgetStatus } from '../../lib/selectors.js'
 
 export default function BudgetsView({ month }) {
   const { budgets, transactions, upsertBudget, deleteBudget } = useFinance()
+  const { getDisplay } = useCategoryOverrides()
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
   const [limit, setLimit] = useState('')
 
@@ -93,7 +94,7 @@ export default function BudgetsView({ month }) {
           >
             {EXPENSE_CATEGORIES.map((key) => (
               <option key={key} value={key}>
-                {CATEGORIES[key].label}
+                {getDisplay(key).name}
               </option>
             ))}
           </select>
@@ -134,7 +135,8 @@ export default function BudgetsView({ month }) {
           {status.map((b) => {
             const cat = getCategory(b.category)
             const over = b.ratio >= 1
-            const color = getCategoryColor(b.category)
+            const disp = getDisplay(b.category)
+            const color = disp.color
             return (
               <div
                 key={b.id}
@@ -153,7 +155,7 @@ export default function BudgetsView({ month }) {
                         className="text-sm font-semibold"
                         style={{ color }}
                       >
-                        {cat.label}
+                        {disp.name}
                       </p>
                       <p className="font-num text-xs text-muted">
                         {formatPercent(b.ratio, 0)} utilisé
@@ -163,7 +165,7 @@ export default function BudgetsView({ month }) {
                   <button
                     type="button"
                     onClick={() => deleteBudget(b.id)}
-                    aria-label={`Supprimer le budget ${cat.label}`}
+                    aria-label={`Supprimer le budget ${disp.name}`}
                     className="grid h-8 w-8 place-items-center rounded-lg text-faint transition-colors hover:bg-elevated hover:text-negative"
                   >
                     <Trash2 className="h-4 w-4" />
