@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
+import SubscriptionsSection from './SubscriptionsSection.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
 import { getCategoryColor } from '../../constants/categories.js'
@@ -202,6 +203,9 @@ export default function BudgetsView({ month }) {
           })}
         </div>
       )}
+
+      {/* Abonnements & charges fixes */}
+      <SubscriptionsSection />
     </div>
   )
 }
