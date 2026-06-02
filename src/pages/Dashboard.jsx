@@ -4,7 +4,6 @@ import OverviewView from '../components/dashboard/OverviewView.jsx'
 import TransactionsView from '../components/dashboard/TransactionsView.jsx'
 import BudgetsView from '../components/dashboard/BudgetsView.jsx'
 import InvestmentsView from '../components/dashboard/InvestmentsView.jsx'
-import IrysAgencyView from '../components/dashboard/IrysAgencyView.jsx'
 import SettingsView from '../components/dashboard/SettingsView.jsx'
 import TransactionModal from '../components/dashboard/TransactionModal.jsx'
 import { useSubscriptionAutoDebit } from '../hooks/useSubscriptionAutoDebit.js'
@@ -54,7 +53,6 @@ export default function Dashboard() {
         )}
         {view === 'budgets' && <BudgetsView month={month} />}
         {view === 'investments' && <InvestmentsView />}
-        {view === 'irys' && <IrysAgencyView month={month} />}
         {view === 'settings' && <SettingsView />}
       </main>
 
