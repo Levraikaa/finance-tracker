@@ -18,10 +18,10 @@ import {
   delta,
   filterByMonth,
   totals,
-  trackingMonthlySeries,
+  trackingDailySeries,
 } from '../../lib/selectors.js'
 
-const TRACKING_START = new Date(2025, 4, 1) // mai 2025 = début du tracking
+const CHART_START = new Date(2026, 3, 1) // avril 2026 = début de la courbe
 
 function barColor(ratio) {
   return ratio >= 1 ? 'var(--color-negative)' : 'var(--color-accent)'
@@ -36,7 +36,6 @@ export default function OverviewView({ month, onNavigate }) {
     cashBalance,
     bankBalance,
     deleteTransaction,
-    bankAdjustments,
   } = useFinance()
   const { getDisplay } = useCategoryOverrides()
 
@@ -67,27 +66,23 @@ export default function OverviewView({ month, onNavigate }) {
     const curTx = filterByMonth(transactions, curKey)
     const cur = totals(curTx)
     const prev = totals(filterByMonth(transactions, prevKey))
-    /* Pocket Global et solde bancaire sont les valeurs « actuelles » :
-       on les utilise comme ancre pour reconstituer chaque mois passé. */
-    const trackingSeries = trackingMonthlySeries(
-      transactions,
-      bankAdjustments,
-      pocketGlobal,
-      bankBalance,
-      TRACKING_START,
-      month,
-    )
     return {
       cur,
       curTx,
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
-      trackingSeries,
       breakdown: categoryBreakdown(curTx, 'expense'),
       budgetState: budgetStatus(budgets, transactions, curKey),
       recent: curTx.slice(0, 6),
     }
-  }, [transactions, budgets, month, pocketGlobal, bankBalance, bankAdjustments])
+  }, [transactions, budgets, month])
+
+  /* Évolution journalière du Pocket Global — ancrée sur la valeur live
+     d'aujourd'hui, indépendante du mois affiché. */
+  const dailySeries = useMemo(
+    () => trackingDailySeries(transactions, pocketGlobal, CHART_START),
+    [transactions, pocketGlobal],
+  )
 
   const recent = stats.recent
 
@@ -135,16 +130,8 @@ export default function OverviewView({ month, onNavigate }) {
 
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="rounded-2xl border border-line bg-surface p-5 lg:col-span-2">
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              <h2 className="font-display text-base font-semibold">
-                Évolution de l’année
-              </h2>
-              <p className="text-xs text-muted">Basé sur votre Pocket Global</p>
-            </div>
-          </div>
-          <YearlyChart data={stats.trackingSeries} />
+        <div className="lg:col-span-2">
+          <YearlyChart data={dailySeries} />
         </div>
 
         <div className="flex flex-col gap-5">

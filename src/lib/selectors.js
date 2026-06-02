@@ -197,6 +197,60 @@ export function trackingMonthlySeries(
   }))
 }
 
+/** Évolution JOURNALIÈRE du Pocket Global sur la période de tracking.
+ *  - Un point par jour, de `from` (inclus) jusqu'à `ref` (aujourd'hui).
+ *  - Le dernier jour = `endValue` (le Pocket Global live d'aujourd'hui).
+ *  - Chaque jour précédent est reconstitué en remontant le temps : on
+ *    retire le net des transactions du jour suivant.
+ *  La courbe ne « bouge » donc qu'aux jours où il y a eu des mouvements
+ *  (on ne dispose pas d'un historique de prix crypto au jour le jour). */
+export function trackingDailySeries(
+  transactions,
+  endValue,
+  from,
+  ref = new Date(),
+) {
+  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+  const end = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate())
+  if (end < start) return []
+
+  const dayKey = (date) => {
+    const d = new Date(date)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  const txNet = new Map()
+  for (const t of transactions) {
+    const v =
+      t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0
+    if (v === 0) continue
+    const k = dayKey(t.date)
+    txNet.set(k, (txNet.get(k) ?? 0) + v)
+  }
+
+  const days = []
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d))
+  }
+
+  const n = days.length
+  const pocket = new Array(n).fill(null)
+  if (n > 0) {
+    pocket[n - 1] = endValue
+    for (let i = n - 2; i >= 0; i--) {
+      pocket[i] = pocket[i + 1] - (txNet.get(dayKey(days[i + 1])) ?? 0)
+    }
+  }
+
+  return days.map((d, i) => ({
+    key: dayKey(d),
+    year: d.getFullYear(),
+    month: d.getMonth(),
+    day: d.getDate(),
+    pocketGlobal: pocket[i],
+  }))
+}
+
 /** Évolution mensuelle du Pocket Global sur l'année de `ref`.
  *  - Point pour chaque mois (janvier → décembre).
  *  - Le mois en cours = `endValue` (le Pocket Global d'aujourd'hui).
