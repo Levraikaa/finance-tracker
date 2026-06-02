@@ -5,6 +5,7 @@ import {
   Banknote,
   Bitcoin,
   Check,
+  ChevronDown,
   Coins,
   Gift,
   Pencil,
@@ -308,6 +309,8 @@ export default function InvestmentsView() {
   const [transferTo, setTransferTo] = useState(null)
   /* Pocket sélectionné dans la grille : déclenche l'affichage du panneau. */
   const [selectedPocket, setSelectedPocket] = useState(null)
+  /* Section pockets repliable (accordion). */
+  const [pocketsOpen, setPocketsOpen] = useState(false)
 
   const pocketAmount = (key) =>
     pockets.find((p) => p.key === key)?.amount ?? 0
@@ -397,40 +400,91 @@ export default function InvestmentsView() {
   )
 
   const selected = POCKET_TILES.find((p) => p.id === selectedPocket) ?? null
+  const pocketsTotal = POCKET_TILES.reduce(
+    (s, p) => s + pocketBalance(p.id),
+    0,
+  )
 
-  /* Section des pockets — grille cliquable + panneau de détail dessous. */
+  /* Section des pockets — accordion déroulant.
+     Header style identique à Pocket Global ; corps = grille cliquable +
+     panneau de détail. */
   const pocketsSection = (
-    <section className="space-y-3">
-      <div>
-        <h2 className="font-display text-base font-semibold">Mes pockets</h2>
-        <p className="text-xs text-muted">
-          Sélectionne un pocket pour modifier son solde ou lancer un transfert.
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {POCKET_TILES.map((p) => (
-          <PocketTile
-            key={p.id}
-            icon={p.icon}
-            name={p.name}
-            amount={pocketBalance(p.id)}
-            selected={selectedPocket === p.id}
-            accentColor={p.accentColor}
-            apy={p.apy}
-            onSelect={() =>
-              setSelectedPocket((prev) => (prev === p.id ? null : p.id))
-            }
+    <section>
+      <button
+        type="button"
+        onClick={() => setPocketsOpen((v) => !v)}
+        aria-expanded={pocketsOpen}
+        className="flex w-full items-center justify-between gap-3 p-5 text-left transition-[border-radius] duration-300"
+        style={{
+          background: '#131929',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: pocketsOpen ? '16px 16px 0 0' : '16px',
+        }}
+      >
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-base font-semibold">
+            Mes Pockets
+          </h2>
+          <p className="truncate text-xs text-muted">
+            Sélectionne un pocket pour modifier son solde ou lancer un transfert.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="font-num text-base font-bold tabular-nums text-ink">
+            {formatCurrency(pocketsTotal)}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-faint transition-transform duration-300 ${
+              pocketsOpen ? 'rotate-180' : ''
+            }`}
           />
-        ))}
+        </div>
+      </button>
+
+      <div
+        className={`grid transition-all duration-300 ease-out ${
+          pocketsOpen
+            ? 'grid-rows-[1fr] opacity-100'
+            : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div
+            className="space-y-3 px-5 pb-5 pt-4"
+            style={{
+              borderLeft: '1px solid rgba(255,255,255,0.06)',
+              borderRight: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '0 0 16px 16px',
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {POCKET_TILES.map((p) => (
+                <PocketTile
+                  key={p.id}
+                  icon={p.icon}
+                  name={p.name}
+                  amount={pocketBalance(p.id)}
+                  selected={selectedPocket === p.id}
+                  accentColor={p.accentColor}
+                  apy={p.apy}
+                  onSelect={() =>
+                    setSelectedPocket((prev) => (prev === p.id ? null : p.id))
+                  }
+                />
+              ))}
+            </div>
+            {selected && (
+              <PocketDetailPanel
+                pocket={selected}
+                amount={pocketBalance(selected.id)}
+                onSave={(v) => savePocket(selected.id, v)}
+                onTransfer={() => setTransferTo(selected.id)}
+              />
+            )}
+          </div>
+        </div>
       </div>
-      {selected && (
-        <PocketDetailPanel
-          pocket={selected}
-          amount={pocketBalance(selected.id)}
-          onSave={(v) => savePocket(selected.id, v)}
-          onTransfer={() => setTransferTo(selected.id)}
-        />
-      )}
     </section>
   )
 
