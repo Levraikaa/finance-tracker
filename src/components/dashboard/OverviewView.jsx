@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { ArrowRight, TrendingDown, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
@@ -104,11 +104,8 @@ export default function OverviewView({ month, onNavigate }) {
           hint="Compte bancaire"
         />
         <PocketGlobalCard />
-        <StatCard
-          icon={TrendingUp}
-          accent="#00E5A0"
-          label="Revenus du mois"
-          value={formatCurrency(stats.cur.income)}
+        <MonthlyGoalCard
+          transactions={stats.curTx}
           trend={{
             positive: stats.incomeDelta >= 0,
             label: formatPercent(Math.abs(stats.incomeDelta), 0),
@@ -125,9 +122,6 @@ export default function OverviewView({ month, onNavigate }) {
           }}
         />
       </div>
-
-      {/* Objectif mensuel — agrège les revenus du mois par source */}
-      <MonthlyGoalCard transactions={stats.curTx} />
 
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
