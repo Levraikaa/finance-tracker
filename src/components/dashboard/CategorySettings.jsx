@@ -4,7 +4,7 @@ import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
 
-/* Palette fixée pour le color picker (10 teintes alignées avec le
+/* Palette fixée pour le color picker (10 teintes, alignées avec le
    design system de l'app). */
 const PALETTE = [
   '#7C6FFF',
@@ -19,29 +19,39 @@ const PALETTE = [
   '#10B981',
 ]
 
-function ColorPicker({ value, onChange, onClose }) {
+/* Popup color picker. `triggerRef` est le bouton qui ouvre le picker :
+   on l'inclut dans la zone « cliquable » pour éviter qu'un clic
+   d'outside-detection ne déclenche immédiatement la réouverture. */
+function ColorPicker({ value, onChange, onClose, triggerRef }) {
   const ref = useRef(null)
+
   useEffect(() => {
-    const onClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose()
+    const onPointerDown = (e) => {
+      const inPicker = ref.current?.contains(e.target)
+      const inTrigger = triggerRef?.current?.contains(e.target)
+      if (!inPicker && !inTrigger) onClose()
     }
     const onKey = (e) => {
       if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('mousedown', onClick)
+    document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [onClose])
+  }, [onClose, triggerRef])
 
   return (
     <div
       ref={ref}
       role="dialog"
       aria-label="Choisir une couleur"
-      className="absolute left-0 top-full z-30 mt-2 grid w-44 grid-cols-5 gap-2 rounded-xl border border-line bg-elevated p-3 shadow-xl shadow-black/40"
+      className="absolute right-0 top-full z-30 mt-2 grid w-44 grid-cols-5 gap-2 rounded-xl border p-3 shadow-xl shadow-black/40"
+      style={{
+        background: '#0B0F1A',
+        borderColor: 'rgba(255,255,255,0.08)',
+      }}
     >
       {PALETTE.map((c) => {
         const active = c.toLowerCase() === String(value).toLowerCase()
@@ -71,14 +81,20 @@ function ColorPicker({ value, onChange, onClose }) {
 }
 
 function CategoryRow({ categoryKey }) {
-  const { getDisplay, renameCategory, recolorCategory, resetCategory, overrides } =
-    useCategoryOverrides()
+  const {
+    getDisplay,
+    renameCategory,
+    recolorCategory,
+    resetCategory,
+    overrides,
+  } = useCategoryOverrides()
   const disp = getDisplay(categoryKey)
   const meta = getCategory(categoryKey)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(disp.name)
   const [pickerOpen, setPickerOpen] = useState(false)
   const inputRef = useRef(null)
+  const triggerRef = useRef(null)
   const customized = Boolean(overrides[categoryKey])
 
   useEffect(() => {
@@ -109,30 +125,14 @@ function CategoryRow({ categoryKey }) {
   }
 
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas p-3">
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setPickerOpen((v) => !v)}
-          aria-label={`Choisir la couleur de ${disp.name}`}
-          aria-expanded={pickerOpen}
-          className="grid h-9 w-9 place-items-center rounded-full transition-transform hover:scale-105"
-          style={{
-            backgroundColor: disp.color,
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
-          }}
-        >
-          <CategoryIcon name={meta.icon} className="h-4 w-4 text-white" />
-        </button>
-        {pickerOpen && (
-          <ColorPicker
-            value={disp.color}
-            onChange={(c) => recolorCategory(categoryKey, c)}
-            onClose={() => setPickerOpen(false)}
-          />
-        )}
-      </div>
-
+    <li
+      className="flex flex-wrap items-center gap-3 rounded-xl border p-3"
+      style={{
+        background: '#131929',
+        borderColor: 'rgba(255,255,255,0.06)',
+      }}
+    >
+      {/* Nom à gauche */}
       <div className="min-w-0 flex-1">
         {editing ? (
           <input
@@ -145,13 +145,42 @@ function CategoryRow({ categoryKey }) {
             className="w-full rounded-lg border border-accent/40 bg-canvas px-2 py-1 text-sm font-semibold text-ink outline-none transition-colors focus:border-accent"
           />
         ) : (
-          <p className="truncate text-sm font-semibold" style={{ color: disp.color }}>
+          <p
+            className="truncate text-sm font-semibold"
+            style={{ color: disp.color }}
+          >
             {disp.name}
           </p>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      {/* Cercle coloré cliquable + crayon à droite */}
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="relative">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-label={`Choisir la couleur de ${disp.name}`}
+            aria-expanded={pickerOpen}
+            className="grid h-9 w-9 place-items-center rounded-full transition-transform hover:scale-105"
+            style={{
+              backgroundColor: disp.color,
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
+            }}
+          >
+            <CategoryIcon name={meta.icon} className="h-4 w-4 text-white" />
+          </button>
+          {pickerOpen && (
+            <ColorPicker
+              value={disp.color}
+              onChange={(c) => recolorCategory(categoryKey, c)}
+              onClose={() => setPickerOpen(false)}
+              triggerRef={triggerRef}
+            />
+          )}
+        </div>
+
         {editing ? (
           <button
             type="button"
@@ -200,8 +229,8 @@ export default function CategorySettings() {
             Gérer les catégories
           </h2>
           <p className="text-xs text-muted">
-            Renomme et recolore tes catégories de dépenses. Les modifications
-            s’appliquent partout en temps réel.
+            Renomme tes catégories et choisis leur couleur. Les modifications
+            se propagent partout en temps réel.
           </p>
         </div>
       </div>

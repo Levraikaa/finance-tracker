@@ -28,14 +28,17 @@ export const CATEGORIES = {
   },
 
   alimentation: { label: 'Alimentation', type: 'expense', icon: 'UtensilsCrossed' },
-  logement: { label: 'Logement', type: 'expense', icon: 'House' },
-  transport: { label: 'Transport', type: 'expense', icon: 'Car' },
-  loisirs: { label: 'Autre', type: 'expense', icon: 'Gamepad2' },
-  shopping: { label: 'Shopping', type: 'expense', icon: 'ShoppingBag' },
-  sante: { label: 'Santé', type: 'expense', icon: 'HeartPulse' },
   sport: { label: 'Sport', type: 'expense', icon: 'Dumbbell' },
-  abonnements: { label: 'Abonnements', type: 'expense', icon: 'Repeat' },
-  autre: { label: 'Autre', type: 'expense', icon: 'CircleDashed' },
+  loisirs: { label: 'Autre', type: 'expense', icon: 'Gamepad2' },
+  transport: { label: 'Transport', type: 'expense', icon: 'Car' },
+  investissement: { label: 'Investissement', type: 'expense', icon: 'TrendingUp' },
+  abonnements: { label: 'Abonnements / Charges', type: 'expense', icon: 'Repeat' },
+  autre: { label: 'Autre achat', type: 'expense', icon: 'ShoppingBag' },
+  /* Catégories héritées : on les conserve pour afficher d'anciennes
+     transactions, mais elles ne s'affichent plus dans les sélecteurs. */
+  logement: { label: 'Logement', type: 'expense', icon: 'House', hidden: true },
+  shopping: { label: 'Shopping', type: 'expense', icon: 'ShoppingBag', hidden: true },
+  sante: { label: 'Santé', type: 'expense', icon: 'HeartPulse', hidden: true },
 }
 
 export const CATEGORY_KEYS = Object.keys(CATEGORIES)
