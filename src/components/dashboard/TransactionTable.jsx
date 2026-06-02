@@ -1,7 +1,19 @@
 import { Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { getCategory, isReimbursement } from '../../lib/categories.js'
+import { CATEGORY_COLORS } from '../../constants/categories.js'
 import { formatCurrency, formatDateShort } from '../../lib/format.js'
+
+/* Pastille d'icône : couleur de la catégorie pour les dépenses,
+   amber pour les remboursements reçus, accent pour les autres revenus. */
+function pillStyle(category, isReimbursement) {
+  if (isReimbursement) {
+    return { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
+  }
+  const color = CATEGORY_COLORS[category]
+  if (!color) return null
+  return { backgroundColor: `${color}26`, color }
+}
 
 /* Liste de transactions réutilisable (aperçu + vue complète). */
 export default function TransactionTable({
@@ -23,20 +35,14 @@ export default function TransactionTable({
         const cat = getCategory(t.category)
         const income = t.type === 'income'
         const reimbursement = isReimbursement(t.category)
+        const pill = pillStyle(t.category, reimbursement)
         return (
           <li key={t.id} className="group flex items-center gap-3 py-3">
             <span
               className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                reimbursement ? '' : 'bg-accent/15 text-accent'
+                pill ? '' : 'bg-accent/15 text-accent'
               }`}
-              style={
-                reimbursement
-                  ? {
-                      backgroundColor: 'rgba(255,184,77,0.15)',
-                      color: '#FFB84D',
-                    }
-                  : undefined
-              }
+              style={pill ?? undefined}
             >
               <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
             </span>

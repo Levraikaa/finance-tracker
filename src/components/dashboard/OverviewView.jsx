@@ -10,6 +10,7 @@ import TransactionTable from './TransactionTable.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
 import { getCategory } from '../../lib/categories.js'
+import { getCategoryColor } from '../../constants/categories.js'
 import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
@@ -200,12 +201,16 @@ export default function OverviewView({ month, onNavigate }) {
             )}
             {stats.budgetState.slice(0, 5).map((b) => {
               const cat = getCategory(b.category)
+              const color = getCategoryColor(b.category)
               return (
                 <div key={b.id}>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-[3px] bg-accent" />
-                      {cat.label}
+                      <span
+                        className="h-2 w-2 rounded-[3px]"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span style={{ color }}>{cat.label}</span>
                     </span>
                     <span className="font-num tabular-nums text-muted">
                       {formatCurrency(b.spent, { compact: true })} /{' '}
@@ -217,7 +222,7 @@ export default function OverviewView({ month, onNavigate }) {
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${Math.min(b.ratio, 1) * 100}%`,
-                        backgroundColor: barColor(b.ratio),
+                        backgroundColor: color,
                       }}
                     />
                   </div>

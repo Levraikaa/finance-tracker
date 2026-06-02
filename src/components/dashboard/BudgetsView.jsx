@@ -3,12 +3,9 @@ import { Plus, Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
+import { getCategoryColor } from '../../constants/categories.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import { budgetStatus } from '../../lib/selectors.js'
-
-function barColor(ratio) {
-  return ratio >= 1 ? 'var(--color-negative)' : 'var(--color-accent)'
-}
 
 export default function BudgetsView({ month }) {
   const { budgets, transactions, upsertBudget, deleteBudget } = useFinance()
@@ -136,6 +133,7 @@ export default function BudgetsView({ month }) {
           {status.map((b) => {
             const cat = getCategory(b.category)
             const over = b.ratio >= 1
+            const color = getCategoryColor(b.category)
             return (
               <div
                 key={b.id}
@@ -143,11 +141,19 @@ export default function BudgetsView({ month }) {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/15 text-accent">
+                    <span
+                      className="grid h-10 w-10 place-items-center rounded-xl"
+                      style={{ backgroundColor: `${color}26`, color }}
+                    >
                       <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
                     </span>
                     <div>
-                      <p className="text-sm font-semibold">{cat.label}</p>
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color }}
+                      >
+                        {cat.label}
+                      </p>
                       <p className="font-num text-xs text-muted">
                         {formatPercent(b.ratio, 0)} utilisé
                       </p>
@@ -177,7 +183,7 @@ export default function BudgetsView({ month }) {
                     className="h-full rounded-full transition-all"
                     style={{
                       width: `${Math.min(b.ratio, 1) * 100}%`,
-                      backgroundColor: barColor(b.ratio),
+                      backgroundColor: color,
                     }}
                   />
                 </div>

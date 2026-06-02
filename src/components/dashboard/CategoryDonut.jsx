@@ -1,26 +1,12 @@
 import { useState } from 'react'
 import { formatCurrency, formatPercent } from '../../lib/format.js'
+import { getCategoryColor } from '../../constants/categories.js'
 
 /* Anneau de répartition des dépenses par catégorie. */
 const SIZE = 180
 const STROKE = 26
 const RADIUS = (SIZE - STROKE) / 2
 const CIRC = 2 * Math.PI * RADIUS
-
-/* Palette monochrome violette — chaque segment reste distinct sans
-   recourir à des teintes vertes / rouges / orange. */
-const PALETTE = [
-  '#7c6fff',
-  '#a99eff',
-  '#5d4fd6',
-  '#c4bcff',
-  '#8b7dff',
-  '#4c3fb0',
-  '#b0a6ff',
-  '#6b5fe6',
-]
-
-const shade = (i) => PALETTE[i % PALETTE.length]
 
 export default function CategoryDonut({ data }) {
   const [active, setActive] = useState(null)
@@ -62,7 +48,7 @@ export default function CategoryDonut({ data }) {
               cy={SIZE / 2}
               r={RADIUS}
               fill="none"
-              stroke={shade(i)}
+              stroke={getCategoryColor(seg.category)}
               strokeWidth={STROKE}
               strokeDasharray={`${seg.dash} ${CIRC - seg.dash}`}
               strokeDashoffset={seg.offset}
@@ -99,7 +85,7 @@ export default function CategoryDonut({ data }) {
           >
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: shade(i) }}
+              style={{ backgroundColor: getCategoryColor(d.category) }}
             />
             <span className="flex-1 truncate text-sm text-ink">
               {d.meta.label}
