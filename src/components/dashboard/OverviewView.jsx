@@ -18,8 +18,10 @@ import {
   delta,
   filterByMonth,
   totals,
-  yearlyPocketSeries,
+  trackingMonthlySeries,
 } from '../../lib/selectors.js'
+
+const TRACKING_START = new Date(2025, 4, 1) // mai 2025 = début du tracking
 
 function barColor(ratio) {
   return ratio >= 1 ? 'var(--color-negative)' : 'var(--color-accent)'
@@ -34,6 +36,7 @@ export default function OverviewView({ month, onNavigate }) {
     cashBalance,
     bankBalance,
     deleteTransaction,
+    bankAdjustments,
   } = useFinance()
   const { getDisplay } = useCategoryOverrides()
 
@@ -64,20 +67,27 @@ export default function OverviewView({ month, onNavigate }) {
     const curTx = filterByMonth(transactions, curKey)
     const cur = totals(curTx)
     const prev = totals(filterByMonth(transactions, prevKey))
-    /* Le Pocket Global affiché est « aujourd'hui ». La courbe annuelle
-       remonte le temps depuis cette valeur. */
-    const yearlySeries = yearlyPocketSeries(transactions, pocketGlobal, month)
+    /* Pocket Global et solde bancaire sont les valeurs « actuelles » :
+       on les utilise comme ancre pour reconstituer chaque mois passé. */
+    const trackingSeries = trackingMonthlySeries(
+      transactions,
+      bankAdjustments,
+      pocketGlobal,
+      bankBalance,
+      TRACKING_START,
+      month,
+    )
     return {
       cur,
       curTx,
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
-      yearlySeries,
+      trackingSeries,
       breakdown: categoryBreakdown(curTx, 'expense'),
       budgetState: budgetStatus(budgets, transactions, curKey),
       recent: curTx.slice(0, 6),
     }
-  }, [transactions, budgets, month, pocketGlobal])
+  }, [transactions, budgets, month, pocketGlobal, bankBalance, bankAdjustments])
 
   const recent = stats.recent
 
@@ -134,7 +144,7 @@ export default function OverviewView({ month, onNavigate }) {
               <p className="text-xs text-muted">Basé sur votre Pocket Global</p>
             </div>
           </div>
-          <YearlyChart data={stats.yearlySeries} />
+          <YearlyChart data={stats.trackingSeries} />
         </div>
 
         <div className="flex flex-col gap-5">

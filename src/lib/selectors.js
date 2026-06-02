@@ -113,6 +113,90 @@ export function dailyPocketSeries(transactions, startValue, ref = new Date()) {
   return { series, daysInMonth, year, month }
 }
 
+/** Évolution mensuelle multi-courbes de `from` jusqu'au mois de `ref`
+ *  (inclus, contigu). Retourne pour chaque mois :
+ *   - pocketGlobal : valeur de fin de mois, reconstituée en remontant
+ *     depuis `pocketGlobalEnd`.
+ *   - soldeBancaire : idem, reconstitué depuis `bankBalanceEnd`, en
+ *     prenant en compte les ajustements internes du compte.
+ *   - revenus : somme des « vrais » revenus du mois (hors Remboursement
+ *     reçu pour rester aligné avec « Revenus du mois »).
+ *   - depenses : somme des dépenses du mois. */
+export function trackingMonthlySeries(
+  transactions,
+  bankAdjustments,
+  pocketGlobalEnd,
+  bankBalanceEnd,
+  from,
+  ref = new Date(),
+) {
+  const months = []
+  let y = from.getFullYear()
+  let m = from.getMonth()
+  const endY = ref.getFullYear()
+  const endM = ref.getMonth()
+  while (y < endY || (y === endY && m <= endM)) {
+    months.push({
+      year: y,
+      month: m,
+      key: `${y}-${String(m + 1).padStart(2, '0')}`,
+    })
+    m += 1
+    if (m > 11) {
+      m = 0
+      y += 1
+    }
+  }
+
+  const revenus = new Map()
+  const depenses = new Map()
+  const txNet = new Map()
+  for (const t of transactions) {
+    const d = new Date(t.date)
+    const k = monthKey(d)
+    if (t.type === 'income') {
+      if (!isReimbursement(t.category)) {
+        revenus.set(k, (revenus.get(k) ?? 0) + t.amount)
+      }
+      txNet.set(k, (txNet.get(k) ?? 0) + t.amount)
+    } else if (t.type === 'expense') {
+      depenses.set(k, (depenses.get(k) ?? 0) + t.amount)
+      txNet.set(k, (txNet.get(k) ?? 0) - t.amount)
+    }
+  }
+
+  const bankAdj = new Map()
+  for (const a of bankAdjustments ?? []) {
+    const k = monthKey(a.date)
+    bankAdj.set(k, (bankAdj.get(k) ?? 0) + (Number(a.delta) || 0))
+  }
+
+  /* Marche arrière : on connaît la valeur de fin pour le dernier mois,
+     on en déduit chaque mois précédent en retirant le delta du mois suivant. */
+  const pocket = new Array(months.length).fill(null)
+  const bank = new Array(months.length).fill(null)
+  if (months.length > 0) {
+    pocket[months.length - 1] = pocketGlobalEnd
+    bank[months.length - 1] = bankBalanceEnd
+    for (let i = months.length - 2; i >= 0; i--) {
+      const nextKey = months[i + 1].key
+      const nextTxNet = txNet.get(nextKey) ?? 0
+      pocket[i] = pocket[i + 1] - nextTxNet
+      bank[i] = bank[i + 1] - nextTxNet - (bankAdj.get(nextKey) ?? 0)
+    }
+  }
+
+  return months.map((m, i) => ({
+    key: m.key,
+    year: m.year,
+    month: m.month,
+    revenus: revenus.get(m.key) ?? 0,
+    depenses: depenses.get(m.key) ?? 0,
+    pocketGlobal: pocket[i],
+    soldeBancaire: bank[i],
+  }))
+}
+
 /** Évolution mensuelle du Pocket Global sur l'année de `ref`.
  *  - Point pour chaque mois (janvier → décembre).
  *  - Le mois en cours = `endValue` (le Pocket Global d'aujourd'hui).
