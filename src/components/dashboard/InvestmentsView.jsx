@@ -25,16 +25,26 @@ import { formatCurrency, formatPercent } from '../../lib/format.js'
 
 const FONDS_MONETAIRES_APY = 0.0201
 
-/* Liste ordonnée des pockets affichés dans la grille. */
+/* Liste ordonnée des pockets affichés dans la grille.
+   Fonds monétaires : accent orange + APY visible directement sur la card. */
 const POCKET_TILES = [
-  { id: 'cash', name: 'Cash', icon: Banknote },
-  { id: 'fondsMonetaires', name: 'Fonds monétaires flexibles', icon: Coins, apy: true },
-  { id: 'cadeau', name: 'Cadeau', icon: Gift },
-  { id: 'voyage', name: 'Voyage', icon: Plane },
+  { id: 'cash', name: 'Cash', icon: Banknote, accentColor: '#7C6FFF' },
+  {
+    id: 'fondsMonetaires',
+    name: 'Fonds monétaires flexibles',
+    icon: Coins,
+    apy: true,
+    accentColor: '#F97316',
+  },
+  { id: 'cadeau', name: 'Cadeau', icon: Gift, accentColor: '#7C6FFF' },
+  { id: 'voyage', name: 'Voyage', icon: Plane, accentColor: '#7C6FFF' },
 ]
 
-/* Tuile cliquable d'un pocket — nom + solde, et un état sélectionné. */
-function PocketTile({ icon: Icon, name, amount, selected, onSelect }) {
+/* Tuile cliquable d'un pocket — nom + solde, et un état sélectionné.
+   Pour Fonds monétaires flexibles : accent orange et APY toujours visibles. */
+function PocketTile({ icon: Icon, name, amount, selected, onSelect, accentColor, apy }) {
+  const monthly = apy ? amount * FONDS_MONETAIRES_APY / 12 : 0
+  const yearly = apy ? amount * FONDS_MONETAIRES_APY : 0
   return (
     <button
       type="button"
@@ -44,16 +54,19 @@ function PocketTile({ icon: Icon, name, amount, selected, onSelect }) {
       style={{
         background: '#131929',
         border: selected
-          ? '1px solid #7C6FFF'
+          ? `1px solid ${accentColor}`
           : '1px solid rgba(255,255,255,0.06)',
         boxShadow: selected
-          ? '0 0 20px rgba(124,111,255,0.15)'
+          ? `0 0 20px ${accentColor}26`
           : 'none',
         transform: selected ? 'translateY(-2px)' : 'translateY(0)',
       }}
     >
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+          style={{ backgroundColor: `${accentColor}26`, color: accentColor }}
+        >
           <Icon className="h-5 w-5" />
         </span>
         <p className="truncate text-sm font-medium text-ink">{name}</p>
@@ -61,6 +74,44 @@ function PocketTile({ icon: Icon, name, amount, selected, onSelect }) {
       <p className="mt-4 font-num text-2xl font-bold tracking-tight text-ink">
         {formatCurrency(amount)}
       </p>
+      {apy && (
+        <dl
+          className="mt-4 space-y-1.5 border-t pt-3 text-xs"
+          style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+        >
+          <div className="flex items-center justify-between">
+            <dt style={{ color: 'rgba(255,255,255,0.3)' }}>Taux APY</dt>
+            <dd
+              className="font-num font-bold tabular-nums"
+              style={{ color: '#F97316' }}
+            >
+              {formatPercent(FONDS_MONETAIRES_APY, 2)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Intérêts mensuels estimés
+            </dt>
+            <dd
+              className="font-num font-semibold tabular-nums"
+              style={{ color: '#00E5A0' }}
+            >
+              {formatCurrency(monthly)}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Intérêts annuels estimés
+            </dt>
+            <dd
+              className="font-num font-semibold tabular-nums"
+              style={{ color: '#00E5A0' }}
+            >
+              {formatCurrency(yearly)}
+            </dd>
+          </div>
+        </dl>
+      )}
     </button>
   )
 }
@@ -112,9 +163,6 @@ function PocketDetailPanel({
     }
   }
 
-  const monthly = amount * FONDS_MONETAIRES_APY / 12
-  const yearly = amount * FONDS_MONETAIRES_APY
-
   return (
     <div
       className="mt-4 rounded-2xl p-5 transition-all duration-200"
@@ -164,45 +212,6 @@ function PocketDetailPanel({
           </p>
         )}
       </div>
-
-      {pocket.apy && (
-        <dl
-          className="mt-4 space-y-1.5 border-t pt-3 text-xs"
-          style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-        >
-          <div className="flex items-center justify-between">
-            <dt style={{ color: 'rgba(255,255,255,0.55)' }}>Taux APY</dt>
-            <dd
-              className="font-num font-semibold tabular-nums"
-              style={{ color: '#00E5A0' }}
-            >
-              {formatPercent(FONDS_MONETAIRES_APY, 2)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Intérêts mensuels estimés
-            </dt>
-            <dd
-              className="font-num font-semibold tabular-nums"
-              style={{ color: '#00E5A0' }}
-            >
-              {formatCurrency(monthly)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Intérêts annuels estimés
-            </dt>
-            <dd
-              className="font-num font-semibold tabular-nums"
-              style={{ color: '#00E5A0' }}
-            >
-              {formatCurrency(yearly)}
-            </dd>
-          </div>
-        </dl>
-      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <button
@@ -406,6 +415,8 @@ export default function InvestmentsView() {
             name={p.name}
             amount={pocketBalance(p.id)}
             selected={selectedPocket === p.id}
+            accentColor={p.accentColor}
+            apy={p.apy}
             onSelect={() =>
               setSelectedPocket((prev) => (prev === p.id ? null : p.id))
             }
