@@ -3,7 +3,7 @@ import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
-import CashflowChart from './CashflowChart.jsx'
+import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
@@ -14,10 +14,10 @@ import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
   budgetStatus,
   categoryBreakdown,
-  dailyPocketSeries,
   delta,
   filterByMonth,
   totals,
+  yearlyPocketSeries,
 } from '../../lib/selectors.js'
 
 function barColor(ratio) {
@@ -62,15 +62,14 @@ export default function OverviewView({ month, onNavigate }) {
     const curTx = filterByMonth(transactions, curKey)
     const cur = totals(curTx)
     const prev = totals(filterByMonth(transactions, prevKey))
-    /* Le Pocket Global affiché est « aujourd'hui ». Son état au début du
-       mois = total courant − net des transactions du mois en cours. */
-    const startValue = pocketGlobal - cur.net
-    const dailySeries = dailyPocketSeries(transactions, startValue, month)
+    /* Le Pocket Global affiché est « aujourd'hui ». La courbe annuelle
+       remonte le temps depuis cette valeur. */
+    const yearlySeries = yearlyPocketSeries(transactions, pocketGlobal, month)
     return {
       cur,
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
-      dailySeries,
+      yearlySeries,
       breakdown: categoryBreakdown(curTx, 'expense'),
       budgetState: budgetStatus(budgets, transactions, curKey),
       recent: curTx.slice(0, 6),
@@ -130,12 +129,12 @@ export default function OverviewView({ month, onNavigate }) {
           <div className="mb-2 flex items-center justify-between">
             <div>
               <h2 className="font-display text-base font-semibold">
-                Évolution du mois
+                Évolution de l’année
               </h2>
               <p className="text-xs text-muted">Basé sur votre Pocket Global</p>
             </div>
           </div>
-          <CashflowChart data={stats.dailySeries} />
+          <YearlyChart data={stats.yearlySeries} />
         </div>
 
         <div className="flex flex-col gap-5">

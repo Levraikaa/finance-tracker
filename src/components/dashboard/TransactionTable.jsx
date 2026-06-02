@@ -1,6 +1,6 @@
 import { Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
-import { getCategory } from '../../lib/categories.js'
+import { getCategory, isReimbursement } from '../../lib/categories.js'
 import { formatCurrency, formatDateShort } from '../../lib/format.js'
 
 /* Liste de transactions réutilisable (aperçu + vue complète). */
@@ -22,21 +22,52 @@ export default function TransactionTable({
       {transactions.map((t) => {
         const cat = getCategory(t.category)
         const income = t.type === 'income'
+        const reimbursement = isReimbursement(t.category)
         return (
           <li key={t.id} className="group flex items-center gap-3 py-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+            <span
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                reimbursement ? '' : 'bg-accent/15 text-accent'
+              }`}
+              style={
+                reimbursement
+                  ? {
+                      backgroundColor: 'rgba(255,184,77,0.15)',
+                      color: '#FFB84D',
+                    }
+                  : undefined
+              }
+            >
               <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{t.description}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium">{t.description}</p>
+                {reimbursement && (
+                  <span
+                    className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                      backgroundColor: 'rgba(255,184,77,0.15)',
+                      color: '#FFB84D',
+                    }}
+                  >
+                    Remboursement
+                  </span>
+                )}
+              </div>
               <p className="truncate text-xs text-muted">
                 {cat.label} · {formatDateShort(t.date)}
               </p>
             </div>
             <span
               className={`shrink-0 font-num text-sm font-semibold tabular-nums ${
-                income ? 'text-positive' : 'text-ink'
+                reimbursement
+                  ? ''
+                  : income
+                  ? 'text-positive'
+                  : 'text-ink'
               }`}
+              style={reimbursement ? { color: '#FFB84D' } : undefined}
             >
               {income ? '+' : '−'}
               {formatCurrency(t.amount)}

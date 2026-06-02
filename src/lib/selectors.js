@@ -1,5 +1,5 @@
 import { monthKey } from './format'
-import { getCategory } from './categories'
+import { getCategory, isReimbursement } from './categories'
 
 /* Sélecteurs analytiques — fonctions pures dérivant des stats des transactions. */
 
@@ -9,20 +9,32 @@ export function filterByMonth(transactions, key) {
   return transactions.filter((t) => monthKey(t.date) === key)
 }
 
+/* « Vrai » revenu : exclut la catégorie Remboursement reçu, qui crédite
+   bien le solde mais n'est pas considérée comme un revenu. */
+const isRealIncome = (t) =>
+  t.type === 'income' && !isReimbursement(t.category)
+
 export function totals(transactions) {
   const income = sum(
-    transactions.filter((t) => t.type === 'income').map((t) => t.amount),
+    transactions.filter(isRealIncome).map((t) => t.amount),
+  )
+  const reimbursement = sum(
+    transactions
+      .filter((t) => t.type === 'income' && isReimbursement(t.category))
+      .map((t) => t.amount),
   )
   const expense = sum(
     transactions.filter((t) => t.type === 'expense').map((t) => t.amount),
   )
-  const net = income - expense
+  /* Le solde inclut les remboursements (ils créditent réellement le compte). */
+  const net = income + reimbursement - expense
   return {
     income,
+    reimbursement,
     expense,
     net,
     balance: net,
-    savingsRate: income > 0 ? net / income : 0,
+    savingsRate: income > 0 ? (income - expense) / income : 0,
   }
 }
 
@@ -36,19 +48,32 @@ export function lastMonthsKeys(n, ref = new Date()) {
   return keys
 }
 
-/** Série mensuelle : revenus, dépenses, net et solde cumulé. */
+/** Série mensuelle : revenus, dépenses, net et solde cumulé.
+ *  Les remboursements reçus sont exclus du « revenu » affiché, mais
+ *  comptent dans le cumulatif (ils créditent le compte). */
 export function monthlySeries(transactions, n = 6, ref = new Date()) {
   let running = 0
   return lastMonthsKeys(n, ref).map(({ key, date }) => {
     const inMonth = transactions.filter((t) => monthKey(t.date) === key)
-    const income = sum(
-      inMonth.filter((t) => t.type === 'income').map((t) => t.amount),
+    const income = sum(inMonth.filter(isRealIncome).map((t) => t.amount))
+    const reimbursement = sum(
+      inMonth
+        .filter((t) => t.type === 'income' && isReimbursement(t.category))
+        .map((t) => t.amount),
     )
     const expense = sum(
       inMonth.filter((t) => t.type === 'expense').map((t) => t.amount),
     )
-    running += income - expense
-    return { key, date, income, expense, net: income - expense, cumulative: running }
+    running += income + reimbursement - expense
+    return {
+      key,
+      date,
+      income,
+      reimbursement,
+      expense,
+      net: income - expense,
+      cumulative: running,
+    }
   })
 }
 
@@ -88,11 +113,49 @@ export function dailyPocketSeries(transactions, startValue, ref = new Date()) {
   return { series, daysInMonth, year, month }
 }
 
-/** Répartition par catégorie pour un type donné (dépense par défaut). */
+/** Évolution mensuelle du Pocket Global sur l'année de `ref`.
+ *  - Point pour chaque mois (janvier → décembre).
+ *  - Le mois en cours = `endValue` (le Pocket Global d'aujourd'hui).
+ *  - Les mois passés sont reconstitués en remontant le temps depuis
+ *    `endValue` et en retirant le net des transactions de cette année.
+ *  - Les mois futurs sont marqués `future: true` (à afficher en pointillés). */
+export function yearlyPocketSeries(transactions, endValue, ref = new Date()) {
+  const year = ref.getFullYear()
+  const currentMonth = ref.getMonth()
+
+  const netByMonth = new Array(12).fill(0)
+  for (const t of transactions) {
+    const d = new Date(t.date)
+    if (d.getFullYear() !== year) continue
+    const m = d.getMonth()
+    if (t.type === 'income') netByMonth[m] += t.amount
+    else if (t.type === 'expense') netByMonth[m] -= t.amount
+  }
+
+  const values = new Array(12).fill(null)
+  values[currentMonth] = endValue
+  for (let m = currentMonth - 1; m >= 0; m--) {
+    values[m] = values[m + 1] - netByMonth[m + 1]
+  }
+
+  const series = values.map((v, m) => ({
+    month: m,
+    value: v,
+    net: netByMonth[m],
+    future: m > currentMonth,
+  }))
+
+  return { year, currentMonth, series }
+}
+
+/** Répartition par catégorie pour un type donné (dépense par défaut).
+ *  Les remboursements reçus sont toujours exclus (camembert dépenses
+ *  comme statistiques de revenus). */
 export function categoryBreakdown(transactions, type = 'expense') {
   const map = new Map()
   for (const t of transactions) {
     if (t.type !== type) continue
+    if (isReimbursement(t.category)) continue
     map.set(t.category, (map.get(t.category) ?? 0) + t.amount)
   }
   const total = sum([...map.values()])

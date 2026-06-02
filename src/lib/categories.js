@@ -1,11 +1,22 @@
 /* Référentiel des catégories KAAFINANCE.
    `icon` correspond au nom d'une icône lucide-react. */
 
+/* Catégorie « Remboursement reçu » : techniquement un revenu (elle
+   crédite le solde bancaire), mais exclue des stats de revenus, des
+   graphiques et des budgets — c'est de l'argent récupéré, pas gagné. */
+export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
+
 export const CATEGORIES = {
   salaire: { label: 'Salaire', type: 'income', icon: 'Wallet' },
   autres: { label: 'Autres', type: 'income', icon: 'CircleDashed' },
   black: { label: 'Black', type: 'income', icon: 'Banknote' },
   remboursement: { label: 'Remboursement', type: 'income', icon: 'RotateCcw' },
+  remboursementRecu: {
+    label: 'Remboursement reçu',
+    type: 'income',
+    icon: 'Undo2',
+    excludedFromStats: true,
+  },
 
   alimentation: { label: 'Alimentation', type: 'expense', icon: 'UtensilsCrossed' },
   logement: { label: 'Logement', type: 'expense', icon: 'House' },
@@ -29,4 +40,10 @@ export const EXPENSE_CATEGORIES = CATEGORY_KEYS.filter(
 
 export function getCategory(key) {
   return CATEGORIES[key] ?? CATEGORIES.autre
+}
+
+/* True si la catégorie ne doit pas compter comme un « vrai » revenu
+   (exclue des stats, graphiques de revenus et budgets). */
+export function isReimbursement(category) {
+  return category === REIMBURSEMENT_CATEGORY
 }

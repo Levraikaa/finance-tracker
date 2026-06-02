@@ -12,6 +12,7 @@ import {
   RotateCcw,
   ShoppingBag,
   TrendingUp,
+  Undo2,
   UtensilsCrossed,
   Wallet,
 } from 'lucide-react'
@@ -31,6 +32,7 @@ const ICONS = {
   RotateCcw,
   ShoppingBag,
   TrendingUp,
+  Undo2,
   UtensilsCrossed,
   Wallet,
 }
