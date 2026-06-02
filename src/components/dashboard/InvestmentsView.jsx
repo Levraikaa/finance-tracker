@@ -25,44 +25,53 @@ import { formatCurrency, formatPercent } from '../../lib/format.js'
 
 const FONDS_MONETAIRES_APY = 0.0201
 
-/* Indicateur discret de fraîcheur des prix — recompte chaque seconde. */
-function PriceStatus({ status, lastUpdated }) {
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [])
+/* Liste ordonnée des pockets affichés dans la grille. */
+const POCKET_TILES = [
+  { id: 'cash', name: 'Cash', icon: Banknote },
+  { id: 'fondsMonetaires', name: 'Fonds monétaires flexibles', icon: Coins, apy: true },
+  { id: 'cadeau', name: 'Cadeau', icon: Gift },
+  { id: 'voyage', name: 'Voyage', icon: Plane },
+]
 
-  if (status === 'idle') return null
-
-  let dot = 'bg-accent'
-  let text = 'Mise à jour des prix…'
-  if (status === 'error') {
-    dot = 'bg-negative'
-    text = 'Hors ligne — nouvelle tentative en cours'
-  } else if (status === 'ok' && lastUpdated) {
-    const secs = Math.max(0, Math.round((Date.now() - lastUpdated) / 1000))
-    dot = 'bg-positive'
-    text = `Prix mis à jour il y a ${secs} s`
-  }
-
+/* Tuile cliquable d'un pocket — nom + solde, et un état sélectionné. */
+function PocketTile({ icon: Icon, name, amount, selected, onSelect }) {
   return (
-    <div className="fixed bottom-4 right-4 z-20 flex items-center gap-2 rounded-full border border-line bg-canvas/85 px-3 py-1.5 text-xs text-muted backdrop-blur">
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {text}
-    </div>
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className="rounded-2xl p-5 text-left transition-all duration-200"
+      style={{
+        background: '#131929',
+        border: selected
+          ? '1px solid #7C6FFF'
+          : '1px solid rgba(255,255,255,0.06)',
+        boxShadow: selected
+          ? '0 0 20px rgba(124,111,255,0.15)'
+          : 'none',
+        transform: selected ? 'translateY(-2px)' : 'translateY(0)',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+          <Icon className="h-5 w-5" />
+        </span>
+        <p className="truncate text-sm font-medium text-ink">{name}</p>
+      </div>
+      <p className="mt-4 font-num text-2xl font-bold tracking-tight text-ink">
+        {formatCurrency(amount)}
+      </p>
+    </button>
   )
 }
 
-/* Carte d'un pocket avec édition inline du solde + APY optionnel.
-   `onTransfer` reçoit la clé de la destination pré-remplie. */
-function PocketEditCard({
-  icon: Icon,
-  name,
+/* Panneau de détail d'un pocket sélectionné : solde, APY (optionnel),
+   édition inline du solde et raccourci transfert. */
+function PocketDetailPanel({
+  pocket,
   amount,
   onSave,
   onTransfer,
-  showApy = false,
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -75,21 +84,24 @@ function PocketEditCard({
     }
   }, [editing])
 
+  /* Reset l'édition si on change de pocket sélectionné. */
+  useEffect(() => {
+    setEditing(false)
+    setDraft('')
+  }, [pocket?.id])
+
+  if (!pocket) return null
+
   const startEdit = () => {
     setDraft(amount ? String(amount) : '')
     setEditing(true)
   }
-
   const commit = () => {
     const value = parseFloat(String(draft).replace(',', '.'))
     onSave(Number.isFinite(value) ? value : 0)
     setEditing(false)
   }
-
-  const cancel = () => {
-    setEditing(false)
-  }
-
+  const cancel = () => setEditing(false)
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -105,44 +117,17 @@ function PocketEditCard({
 
   return (
     <div
-      className="rounded-2xl p-5"
+      className="mt-4 rounded-2xl p-5 transition-all duration-200"
       style={{
         background: '#131929',
         border: '1px solid rgba(255,255,255,0.06)',
       }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
-            <Icon className="h-5 w-5" />
-          </span>
-          <p className="truncate text-sm font-medium text-ink">{name}</p>
-        </div>
-        {!editing && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            {onTransfer && (
-              <button
-                type="button"
-                onClick={onTransfer}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
-              >
-                <ArrowLeftRight className="h-3.5 w-3.5" />
-                Transférer
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={startEdit}
-              aria-label={`Modifier le solde de ${name}`}
-              className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-canvas text-muted transition-colors hover:border-accent/40 hover:text-accent"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-      </div>
+      <p className="text-xs font-semibold uppercase tracking-[1px] text-muted">
+        {pocket.name}
+      </p>
 
-      <div className="mt-4">
+      <div className="mt-3">
         {editing ? (
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -157,7 +142,7 @@ function PocketEditCard({
                 onKeyDown={handleKeyDown}
                 onBlur={commit}
                 placeholder="0,00"
-                className="w-full rounded-lg border border-accent/40 bg-canvas px-3 py-2 pr-8 font-num text-lg font-bold text-ink outline-none transition-colors focus:border-accent"
+                className="w-full rounded-lg border border-accent/40 bg-canvas px-3 py-2 pr-8 font-num text-3xl font-bold text-ink outline-none transition-colors focus:border-accent"
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-faint">
                 €
@@ -168,19 +153,19 @@ function PocketEditCard({
               onMouseDown={(e) => e.preventDefault()}
               onClick={commit}
               aria-label="Valider le solde"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-white transition-colors hover:bg-accent-dim"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-white transition-colors hover:bg-accent-dim"
             >
               <Check className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <p className="font-num text-2xl font-bold tracking-tight text-ink">
+          <p className="font-num text-4xl font-bold tracking-tight text-ink">
             {formatCurrency(amount)}
           </p>
         )}
       </div>
 
-      {showApy && (
+      {pocket.apy && (
         <dl
           className="mt-4 space-y-1.5 border-t pt-3 text-xs"
           style={{ borderColor: 'rgba(255,255,255,0.06)' }}
@@ -218,6 +203,58 @@ function PocketEditCard({
           </div>
         </dl>
       )}
+
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={startEdit}
+          className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-elevated"
+        >
+          <Pencil className="h-4 w-4" />
+          Modifier le solde
+        </button>
+        <button
+          type="button"
+          onClick={onTransfer}
+          className="inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+          style={{
+            background: '#7C6FFF',
+            boxShadow: '0 0 20px rgba(124,111,255,0.35)',
+          }}
+        >
+          <ArrowLeftRight className="h-4 w-4" />
+          Transférer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* Indicateur discret de fraîcheur des prix — recompte chaque seconde. */
+function PriceStatus({ status, lastUpdated }) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  if (status === 'idle') return null
+
+  let dot = 'bg-accent'
+  let text = 'Mise à jour des prix…'
+  if (status === 'error') {
+    dot = 'bg-negative'
+    text = 'Hors ligne — nouvelle tentative en cours'
+  } else if (status === 'ok' && lastUpdated) {
+    const secs = Math.max(0, Math.round((Date.now() - lastUpdated) / 1000))
+    dot = 'bg-positive'
+    text = `Prix mis à jour il y a ${secs} s`
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 z-20 flex items-center gap-2 rounded-full border border-line bg-canvas/85 px-3 py-1.5 text-xs text-muted backdrop-blur">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {text}
     </div>
   )
 }
@@ -260,9 +297,19 @@ export default function InvestmentsView() {
   const [modal, setModal] = useState(null)
   const [buyMore, setBuyMore] = useState(null)
   const [transferTo, setTransferTo] = useState(null)
+  /* Pocket sélectionné dans la grille : déclenche l'affichage du panneau. */
+  const [selectedPocket, setSelectedPocket] = useState(null)
 
   const pocketAmount = (key) =>
     pockets.find((p) => p.key === key)?.amount ?? 0
+
+  const pocketBalance = (key) =>
+    key === 'cash' ? cashBalance : pocketAmount(key)
+
+  const savePocket = (key, value) => {
+    if (key === 'cash') setCashBalance(value)
+    else updatePocketAmount(key, value)
+  }
 
   const geckoIds = useMemo(
     () => cryptos.map((c) => getCryptoMeta(c.coin).geckoId).filter(Boolean),
@@ -340,48 +387,39 @@ export default function InvestmentsView() {
     </>
   )
 
-  /* Section éditable des pockets — toujours affichée, y compris si le
-     portefeuille crypto est vide. */
+  const selected = POCKET_TILES.find((p) => p.id === selectedPocket) ?? null
+
+  /* Section des pockets — grille cliquable + panneau de détail dessous. */
   const pocketsSection = (
     <section className="space-y-3">
       <div>
         <h2 className="font-display text-base font-semibold">Mes pockets</h2>
         <p className="text-xs text-muted">
-          Ajuste manuellement le solde de chaque pocket. Le Pocket Global se
-          recalcule instantanément.
+          Sélectionne un pocket pour modifier son solde ou lancer un transfert.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PocketEditCard
-          icon={Banknote}
-          name="Cash"
-          amount={cashBalance}
-          onSave={setCashBalance}
-          onTransfer={() => setTransferTo('cash')}
-        />
-        <PocketEditCard
-          icon={Coins}
-          name="Fonds monétaires flexibles"
-          amount={pocketAmount('fondsMonetaires')}
-          onSave={(v) => updatePocketAmount('fondsMonetaires', v)}
-          onTransfer={() => setTransferTo('fondsMonetaires')}
-          showApy
-        />
-        <PocketEditCard
-          icon={Gift}
-          name="Cadeau"
-          amount={pocketAmount('cadeau')}
-          onSave={(v) => updatePocketAmount('cadeau', v)}
-          onTransfer={() => setTransferTo('cadeau')}
-        />
-        <PocketEditCard
-          icon={Plane}
-          name="Voyage"
-          amount={pocketAmount('voyage')}
-          onSave={(v) => updatePocketAmount('voyage', v)}
-          onTransfer={() => setTransferTo('voyage')}
-        />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {POCKET_TILES.map((p) => (
+          <PocketTile
+            key={p.id}
+            icon={p.icon}
+            name={p.name}
+            amount={pocketBalance(p.id)}
+            selected={selectedPocket === p.id}
+            onSelect={() =>
+              setSelectedPocket((prev) => (prev === p.id ? null : p.id))
+            }
+          />
+        ))}
       </div>
+      {selected && (
+        <PocketDetailPanel
+          pocket={selected}
+          amount={pocketBalance(selected.id)}
+          onSave={(v) => savePocket(selected.id, v)}
+          onTransfer={() => setTransferTo(selected.id)}
+        />
+      )}
     </section>
   )
 
