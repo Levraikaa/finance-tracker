@@ -83,21 +83,19 @@ export default function MonthlyGoalCard({ transactions, trend }) {
   }
 
   return (
-    <div
-      className="overflow-hidden rounded-2xl border border-line transition-[border-radius] duration-300"
-      style={{
-        background: 'linear-gradient(135deg, #131929 0%, #1a1f35 100%)',
-        borderLeftWidth: '3px',
-        borderLeftColor: '#00E5A0',
-        boxShadow: '0 8px 32px rgba(124,111,255,0.08)',
-      }}
-    >
-      {/* En-tête cliquable — même look qu'une StatCard. */}
+    <div className="overflow-visible">
+      {/* En-tête cliquable — même look que Pocket Global (fond #131929 +
+          border rgba(255,255,255,0.06), rayon adapté à l'état ouvert). */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full p-5 text-left transition-[filter] duration-200 hover:brightness-110"
+        className="w-full p-5 text-left transition-[border-radius,filter] duration-300 hover:brightness-110"
+        style={{
+          background: '#131929',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: open ? '16px 16px 0 0' : '16px',
+        }}
       >
         <div className="flex items-start justify-between">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/20 text-accent">
@@ -145,7 +143,16 @@ export default function MonthlyGoalCard({ transactions, trend }) {
         }`}
       >
         <div className="overflow-hidden">
-          <div className="space-y-4 border-t border-line-soft px-5 pb-5 pt-4">
+          <div
+            className="space-y-4 px-5 pb-5 pt-4"
+            style={{
+              borderLeft: '1px solid rgba(255,255,255,0.06)',
+              borderRight: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '0 0 16px 16px',
+              background: '#131929',
+            }}
+          >
             {/* Total / objectif */}
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p
@@ -209,21 +216,27 @@ export default function MonthlyGoalCard({ transactions, trend }) {
               </div>
             </div>
 
-            {/* Détail par source. */}
-            <ul className="grid gap-2 sm:grid-cols-2">
+            {/* Détail par source — label à gauche translucide, montant
+                à droite en blanc bold. */}
+            <ul className="space-y-2">
               {sources.map((s) => (
                 <li
                   key={s.key}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-canvas/60 px-3 py-2"
+                  className="flex items-center justify-between gap-3 py-1"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: s.color }}
                     />
-                    <span className="truncate text-sm text-ink">{s.label}</span>
+                    <span
+                      className="truncate text-sm"
+                      style={{ color: 'rgba(255,255,255,0.55)' }}
+                    >
+                      {s.label}
+                    </span>
                   </span>
-                  <span className="font-num text-sm font-semibold tabular-nums text-ink">
+                  <span className="font-num text-sm font-bold tabular-nums text-white">
                     {formatCurrency(s.amount)}
                   </span>
                 </li>
