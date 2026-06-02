@@ -20,11 +20,12 @@ const NAMED_KEYS = new Set(
   SOURCES.flatMap((s) => s.categories ?? []),
 )
 
+/* Le rouge est réservé aux dépenses : la barre objectif ne descend
+   jamais en dessous d'amber. */
 function barColor(ratio) {
   if (ratio >= 1) return '#00E5A0'
-  if (ratio >= 0.8) return '#7C6FFF'
-  if (ratio >= 0.5) return '#FFB84D'
-  return '#FF4D6A'
+  if (ratio >= 0.5) return '#7C6FFF'
+  return '#FFB84D'
 }
 
 export default function MonthlyGoalCard({ transactions }) {

@@ -4,12 +4,14 @@
    Clés = clés internes des catégories (alimentation, sport, …) ;
    les libellés affichés sont définis dans src/lib/categories.js. */
 
+/* Le rouge #FF4D6A n'est pas utilisé ici : il signale uniquement un
+   dépassement de budget ou une dépense négative. */
 export const CATEGORY_COLORS = {
-  alimentation: '#FF6B6B', // Nourriture / Alimentation
+  alimentation: '#FFB84D', // Nourriture / Alimentation
   sport: '#00E5A0',         // Sport
   loisirs: '#FFB84D',       // Loisir
   transport: '#69C9D0',     // Transport
-  abonnements: '#FF4D6A',   // Abonnements / Charges
+  abonnements: '#69C9D0',   // Abonnements / Charges
   autre: '#A78BFA',         // Autre achat
   shopping: '#C084FC',
   logement: '#4FD1C5',
