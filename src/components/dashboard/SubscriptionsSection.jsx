@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage.js'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
@@ -286,6 +286,7 @@ function SubscriptionRow({ sub, fx, onEdit, onDelete, getDisplay }) {
 export default function SubscriptionsSection() {
   const [subs, setSubs] = useLocalStorage(STORAGE_KEY, seedSubscriptions)
   const [mode, setMode] = useState(null) // null | 'add' | { id }
+  const [open, setOpen] = useState(false)
   const fx = useIdrRate()
   const { getDisplay } = useCategoryOverrides()
 
@@ -338,16 +339,60 @@ export default function SubscriptionsSection() {
   }
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-base font-semibold">
+    <section>
+      {/* Header accordion — toujours visible, cliquable. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 p-5 text-left transition-[border-radius] duration-300"
+        style={{
+          background: '#131929',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: open ? '16px 16px 0 0' : '16px',
+        }}
+      >
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-base font-semibold">
             Abonnements & Charges fixes
           </h2>
-          <p className="text-xs text-muted">
+          <p className="truncate text-xs text-muted">
             Tes prélèvements récurrents — IDR convertis en EUR au taux du jour.
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="font-num text-base font-bold tabular-nums text-ink">
+            {formatCurrency(totals.total)}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-faint transition-transform duration-300 ${
+              open ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      {/* Corps accordion. */}
+      <div
+        className={`grid transition-all duration-300 ease-out ${
+          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div
+            className="px-5 pb-5 pt-4"
+            style={{
+              background: 'var(--color-surface, transparent)',
+              borderLeft: '1px solid rgba(255,255,255,0.06)',
+              borderRight: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '0 0 16px 16px',
+            }}
+          >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-xs text-muted">
+          Gère tes abonnements actifs ci-dessous.
+        </p>
         {mode === null && (
           <button
             type="button"
@@ -443,6 +488,9 @@ export default function SubscriptionsSection() {
             indisponible).
           </p>
         )}
+      </div>
+          </div>
+        </div>
       </div>
     </section>
   )
