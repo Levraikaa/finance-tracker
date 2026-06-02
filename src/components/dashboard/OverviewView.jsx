@@ -3,6 +3,7 @@ import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
+import MonthlyGoalCard from './MonthlyGoalCard.jsx'
 import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
@@ -67,6 +68,7 @@ export default function OverviewView({ month, onNavigate }) {
     const yearlySeries = yearlyPocketSeries(transactions, pocketGlobal, month)
     return {
       cur,
+      curTx,
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
       yearlySeries,
@@ -122,6 +124,9 @@ export default function OverviewView({ month, onNavigate }) {
           }}
         />
       </div>
+
+      {/* Objectif mensuel — agrège les revenus du mois par source */}
+      <MonthlyGoalCard transactions={stats.curTx} />
 
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">

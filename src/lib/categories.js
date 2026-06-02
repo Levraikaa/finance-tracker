@@ -8,6 +8,8 @@ export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
 
 export const CATEGORIES = {
   salaire: { label: 'Salaire', type: 'income', icon: 'Wallet' },
+  chomage: { label: 'Chômage', type: 'income', icon: 'Umbrella' },
+  irysAgency: { label: 'Irys Agency', type: 'income', icon: 'Briefcase' },
   autres: { label: 'Autres', type: 'income', icon: 'CircleDashed' },
   black: { label: 'Black', type: 'income', icon: 'Banknote' },
   remboursement: { label: 'Remboursement', type: 'income', icon: 'RotateCcw' },

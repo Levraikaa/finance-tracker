@@ -1,5 +1,6 @@
 import {
   Banknote,
+  Briefcase,
   Car,
   CircleDashed,
   Dumbbell,
@@ -12,6 +13,7 @@ import {
   RotateCcw,
   ShoppingBag,
   TrendingUp,
+  Umbrella,
   Undo2,
   UtensilsCrossed,
   Wallet,
@@ -20,6 +22,7 @@ import {
 /* Résout le nom d'icône d'une catégorie vers le composant lucide correspondant. */
 const ICONS = {
   Banknote,
+  Briefcase,
   Car,
   CircleDashed,
   Dumbbell,
@@ -32,6 +35,7 @@ const ICONS = {
   RotateCcw,
   ShoppingBag,
   TrendingUp,
+  Umbrella,
   Undo2,
   UtensilsCrossed,
   Wallet,
