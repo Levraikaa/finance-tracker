@@ -91,12 +91,68 @@ export function FinanceProvider({ children }) {
             date: data.date
               ? new Date(data.date).toISOString()
               : new Date().toISOString(),
+            ...(data.auto ? { auto: true } : {}),
+            ...(data.paymentMethod ? { paymentMethod: data.paymentMethod } : {}),
           },
           ...prev,
         ]),
       )
     },
     [setTransactions],
+  )
+
+  /* Débit automatique d'un abonnement : crée la dépense + route le
+     solde selon le moyen de paiement.
+     - `compte` : la transaction réduit naturellement le solde bancaire.
+     - `cash`   : on compense le solde bancaire par un ajustement positif
+                  (la transaction reste comptée dans les stats / budgets)
+                  et on débite le pocket Cash. */
+  const recordAutoDebit = useCallback(
+    ({ name, amount, method, category = 'abonnements' }) => {
+      const value = Math.abs(Number(amount)) || 0
+      if (value <= 0) return
+      const stamp = new Date().toISOString()
+      const safeMethod = method === 'cash' ? 'cash' : 'compte'
+
+      setTransactions((prev) =>
+        sortByDate([
+          {
+            id: uid(),
+            type: 'expense',
+            amount: value,
+            category,
+            description: name?.trim() || 'Abonnement',
+            date: stamp,
+            auto: true,
+            paymentMethod: safeMethod,
+          },
+          ...prev,
+        ]),
+      )
+
+      if (safeMethod === 'cash') {
+        setBankAdjustments((prev) => [
+          {
+            id: uid(),
+            delta: value,
+            description: `Compensation paiement cash : ${name}`,
+            date: stamp,
+          },
+          ...prev,
+        ])
+        setCashMovements((prev) => [
+          {
+            id: uid(),
+            type: 'remove',
+            amount: value,
+            description: `Auto : ${name}`,
+            date: stamp,
+          },
+          ...prev,
+        ])
+      }
+    },
+    [setTransactions, setBankAdjustments, setCashMovements],
   )
 
   const deleteTransaction = useCallback(
@@ -372,6 +428,7 @@ export function FinanceProvider({ children }) {
       startingBalance,
       bankBalance,
       addTransaction,
+      recordAutoDebit,
       deleteTransaction,
       upsertBudget,
       deleteBudget,
@@ -397,6 +454,7 @@ export function FinanceProvider({ children }) {
       startingBalance,
       bankBalance,
       addTransaction,
+      recordAutoDebit,
       deleteTransaction,
       upsertBudget,
       deleteBudget,

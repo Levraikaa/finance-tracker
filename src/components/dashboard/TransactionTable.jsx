@@ -60,6 +60,17 @@ export default function TransactionTable({
                     Remboursement
                   </span>
                 )}
+                {t.auto && (
+                  <span
+                    className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    Auto
+                  </span>
+                )}
               </div>
               <p className="truncate text-xs text-muted">
                 {cat.label} · {formatDateShort(t.date)}

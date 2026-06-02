@@ -6,6 +6,7 @@ import BudgetsView from '../components/dashboard/BudgetsView.jsx'
 import InvestmentsView from '../components/dashboard/InvestmentsView.jsx'
 import SettingsView from '../components/dashboard/SettingsView.jsx'
 import TransactionModal from '../components/dashboard/TransactionModal.jsx'
+import { useSubscriptionAutoDebit } from '../hooks/useSubscriptionAutoDebit.js'
 
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1)
 
@@ -13,6 +14,9 @@ export default function Dashboard() {
   const [view, setView] = useState('overview')
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
   const [modalOpen, setModalOpen] = useState(false)
+
+  /* Vérifie les abonnements à débiter à chaque chargement. */
+  useSubscriptionAutoDebit()
 
   useEffect(() => {
     document.title = 'KAAFINANCE — Suivi financier'
