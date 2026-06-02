@@ -37,29 +37,51 @@ function formatOriginal(amount, currency) {
   return formatCurrency(amount)
 }
 
-/* Hook : taux de change IDR → EUR (Frankfurter, mis en cache 1 h). */
+/* Hook : taux de change IDR → EUR (Frankfurter, mis en cache 1 h).
+   L'ancien hôte `api.frankfurter.app` renvoie un 301 vers
+   `api.frankfurter.dev` sans en-têtes CORS — on attaque directement
+   le canonique pour éviter l'échec silencieux côté navigateur. */
+const FX_ENDPOINT = 'https://api.frankfurter.dev/v1/latest?from=IDR&to=EUR'
+const FX_CACHE_KEY = 'kaa_fx_idr_eur_v2'
+const FX_TTL_MS = 60 * 60 * 1000
+
 function useIdrRate() {
-  const [rate, setRate] = useState(null)
+  const [state, setState] = useState({ rate: null, status: 'loading' })
+
   useEffect(() => {
     let cancelled = false
+
     try {
-      const cached = JSON.parse(localStorage.getItem('kaa_fx_idr_eur') || 'null')
-      if (cached && Date.now() - cached.t < 60 * 60 * 1000) {
-        setRate(cached.r)
+      const cached = JSON.parse(localStorage.getItem(FX_CACHE_KEY) || 'null')
+      if (
+        cached &&
+        typeof cached.r === 'number' &&
+        Number.isFinite(cached.r) &&
+        cached.r > 0 &&
+        Date.now() - cached.t < FX_TTL_MS
+      ) {
+        setState({ rate: cached.r, status: 'ok' })
         return
       }
     } catch {
       /* cache illisible — on refetch */
     }
-    fetch('https://api.frankfurter.app/latest?from=IDR&to=EUR')
-      .then((r) => r.json())
+
+    fetch(FX_ENDPOINT)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((json) => {
+        if (cancelled) return
         const r = json?.rates?.EUR
-        if (!r || cancelled) return
-        setRate(r)
+        if (typeof r !== 'number' || !Number.isFinite(r) || r <= 0) {
+          throw new Error('Taux EUR invalide dans la réponse')
+        }
+        setState({ rate: r, status: 'ok' })
         try {
           localStorage.setItem(
-            'kaa_fx_idr_eur',
+            FX_CACHE_KEY,
             JSON.stringify({ r, t: Date.now() }),
           )
         } catch {
@@ -67,18 +89,23 @@ function useIdrRate() {
         }
       })
       .catch(() => {
-        /* hors ligne : on garde rate=null, l'UI bascule sur un état dégradé */
+        if (cancelled) return
+        setState({ rate: null, status: 'error' })
       })
+
     return () => {
       cancelled = true
     }
   }, [])
-  return rate
+
+  return state
 }
 
 function toEur(amount, currency, idrRate) {
   if (currency === 'EUR') return amount
-  if (currency === 'IDR' && idrRate != null) return amount * idrRate
+  if (currency === 'IDR' && typeof idrRate === 'number' && idrRate > 0) {
+    return amount * idrRate
+  }
   return null
 }
 
@@ -203,9 +230,9 @@ function SubscriptionForm({ initial, onSubmit, onCancel, submitLabel }) {
   )
 }
 
-function SubscriptionRow({ sub, idrRate, onEdit, onDelete }) {
+function SubscriptionRow({ sub, fx, onEdit, onDelete }) {
   const method = METHOD_BY_ID[sub.method] ?? METHODS[0]
-  const eur = toEur(sub.amount, sub.currency, idrRate)
+  const eur = toEur(sub.amount, sub.currency, fx.rate)
 
   return (
     <li className="rounded-xl border border-line bg-canvas p-4">
@@ -218,11 +245,18 @@ function SubscriptionRow({ sub, idrRate, onEdit, onDelete }) {
           {sub.currency === 'IDR' && (
             <p
               className="mt-0.5 font-num text-xs tabular-nums"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
+              style={{
+                color:
+                  eur != null
+                    ? 'rgba(255,255,255,0.55)'
+                    : 'rgba(255,255,255,0.3)',
+              }}
             >
               {eur != null
                 ? `≈ ${formatCurrency(eur)}`
-                : 'Conversion EUR indisponible'}
+                : fx.status === 'loading'
+                ? 'Conversion en cours…'
+                : 'Taux indisponible'}
             </p>
           )}
         </div>
@@ -270,7 +304,7 @@ function SubscriptionRow({ sub, idrRate, onEdit, onDelete }) {
 export default function SubscriptionsSection() {
   const [subs, setSubs] = useLocalStorage(STORAGE_KEY, seedSubscriptions)
   const [mode, setMode] = useState(null) // null | 'add' | { id }
-  const idrRate = useIdrRate()
+  const fx = useIdrRate()
 
   const editingSub = useMemo(
     () =>
@@ -283,7 +317,7 @@ export default function SubscriptionsSection() {
     let cash = 0
     let unknownIdr = false
     for (const s of subs) {
-      const eur = toEur(s.amount, s.currency, idrRate)
+      const eur = toEur(s.amount, s.currency, fx.rate)
       if (eur == null) {
         unknownIdr = true
         continue
@@ -292,7 +326,7 @@ export default function SubscriptionsSection() {
       else compte += eur
     }
     return { compte, cash, total: compte + cash, unknownIdr }
-  }, [subs, idrRate])
+  }, [subs, fx.rate])
 
   const addSub = (data) => {
     setSubs((prev) => [...prev, { id: uid(), ...data }])
@@ -370,7 +404,7 @@ export default function SubscriptionsSection() {
           <SubscriptionRow
             key={sub.id}
             sub={sub}
-            idrRate={idrRate}
+            fx={fx}
             onEdit={(s) => setMode({ id: s.id })}
             onDelete={deleteSub}
           />
