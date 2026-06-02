@@ -23,7 +23,7 @@ const METHOD_BY_ID = Object.fromEntries(METHODS.map((m) => [m.id, m]))
    pour que le débit alimente directement le budget Sport. */
 const DEFAULTS = [
   { name: 'Loyer', amount: 0, currency: 'EUR', day: 1, method: 'compte', category: 'abonnements' },
-  { name: 'Scooter', amount: 0, currency: 'IDR', day: 5, method: 'cash', category: 'abonnements' },
+  { name: 'Scooter', amount: 0, currency: 'IDR', day: 5, method: 'cash', category: 'transport' },
   { name: 'Revolut Metal', amount: 0, currency: 'EUR', day: 10, method: 'compte', category: 'abonnements' },
   { name: 'Forfait téléphone', amount: 0, currency: 'EUR', day: 15, method: 'compte', category: 'abonnements' },
   { name: 'iTunes', amount: 0, currency: 'EUR', day: 20, method: 'compte', category: 'abonnements' },

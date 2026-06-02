@@ -10,7 +10,7 @@ export const CATEGORY_COLORS = {
   alimentation: '#FFB84D', // Nourriture / Alimentation
   sport: '#00E5A0',         // Sport
   loisirs: '#FFB84D',       // Loisir
-  transport: '#69C9D0',     // Transport
+  transport: '#3B82F6',     // Transport
   abonnements: '#69C9D0',   // Abonnements / Charges
   autre: '#A78BFA',         // Autre achat
   shopping: '#C084FC',
