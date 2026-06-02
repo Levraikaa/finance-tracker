@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage.js'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
@@ -286,6 +286,20 @@ export default function SubscriptionsSection() {
   const [subs, setSubs] = useLocalStorage(STORAGE_KEY, seedSubscriptions)
   const [mode, setMode] = useState(null) // null | 'add' | { id }
   const fx = useIdrRate()
+
+  /* Migration unique : les abonnements créés avant le champ catégorie
+     se retrouvent rattachés par défaut à « Abonnements / Charges ». */
+  useEffect(() => {
+    setSubs((prev) => {
+      let mutated = false
+      const next = prev.map((s) => {
+        if (s.category) return s
+        mutated = true
+        return { ...s, category: DEFAULT_CATEGORY }
+      })
+      return mutated ? next : prev
+    })
+  }, [setSubs])
 
   const editingSub = useMemo(
     () =>
