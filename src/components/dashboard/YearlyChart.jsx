@@ -1,29 +1,26 @@
 import {
   Area,
+  AreaChart,
   CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { formatCurrency } from '../../lib/format.js'
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { formatCurrency, formatPercent } from '../../lib/format.js'
 
-/* Graphique multi-courbes sur la période de tracking.
-   `data` : tableau renvoyé par trackingMonthlySeries (par mois). */
+/* Graphique détaillé de l'évolution du Pocket Global sur la période de tracking.
+   `data` : tableau renvoyé par trackingMonthlySeries (un point par mois).
+   On n'affiche QUE la série `pocketGlobal` — courbe enrichie de la variation
+   mois par mois, de la valeur min/max et des stats de période. */
+
+const ACCENT = '#7C6FFF'
 
 const MONTH_SHORT = [
   'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
   'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
-]
-
-const SERIES = [
-  { key: 'pocketGlobal', name: 'Pocket Global', color: '#7C6FFF' },
-  { key: 'revenus', name: 'Revenus', color: '#00E5A0' },
-  { key: 'depenses', name: 'Dépenses', color: '#FF4D6A' },
-  { key: 'soldeBancaire', name: 'Solde bancaire', color: '#FFB84D', dashed: true },
 ]
 
 const AXIS_TICK = {
@@ -36,8 +33,11 @@ const monthLabel = (m) => `${MONTH_SHORT[m.month]} ${String(m.year).slice(-2)}`
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null
-  /* Recharts passe `payload` non trié — on aligne sur l'ordre métier. */
-  const byKey = Object.fromEntries(payload.map((p) => [p.dataKey, p]))
+  const point = payload[0].payload
+  const value = point.pocketGlobal
+  const delta = point.delta
+  const hasDelta = delta != null
+  const up = hasDelta && delta >= 0
   return (
     <div
       className="font-num text-xs"
@@ -46,7 +46,7 @@ function CustomTooltip({ active, payload, label }) {
         border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: 12,
         padding: '10px 12px',
-        minWidth: 180,
+        minWidth: 170,
       }}
     >
       <p
@@ -55,59 +55,28 @@ function CustomTooltip({ active, payload, label }) {
       >
         {label}
       </p>
-      <ul className="space-y-1.5">
-        {SERIES.map((s) => {
-          const entry = byKey[s.key]
-          if (!entry) return null
-          return (
-            <li key={s.key} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span style={{ color: 'rgba(255,255,255,0.65)' }}>{s.name}</span>
-              </span>
-              <span
-                className="font-semibold tabular-nums"
-                style={{ color: s.color }}
-              >
-                {entry.value == null
-                  ? '—'
-                  : formatCurrency(entry.value, { compact: true })}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+      <p
+        className="font-num text-lg font-bold tabular-nums"
+        style={{ color: ACCENT }}
+      >
+        {value == null ? '—' : formatCurrency(value)}
+      </p>
+      {hasDelta && (
+        <p
+          className="mt-1 flex items-center gap-1 tabular-nums"
+          style={{ color: up ? '#00E5A0' : '#FF4D6A' }}
+        >
+          {up ? (
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          ) : (
+            <ArrowDownRight className="h-3.5 w-3.5" />
+          )}
+          {up ? '+' : '−'}
+          {formatCurrency(Math.abs(delta), { compact: true })}
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>vs mois préc.</span>
+        </p>
+      )}
     </div>
-  )
-}
-
-function renderLegend() {
-  return (
-    <ul
-      className="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3"
-      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}
-    >
-      {SERIES.map((s) => (
-        <li key={s.key} className="flex items-center gap-2">
-          <span
-            className="inline-block"
-            style={{
-              width: 18,
-              height: 2,
-              backgroundColor: s.color,
-              borderRadius: 1,
-              backgroundImage: s.dashed
-                ? `repeating-linear-gradient(90deg, ${s.color} 0 4px, transparent 4px 8px)`
-                : undefined,
-            }}
-          />
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>{s.name}</span>
-        </li>
-      ))}
-    </ul>
   )
 }
 
@@ -126,31 +95,78 @@ export default function YearlyChart({ data }) {
     )
   }
 
-  const chartData = data.map((d) => ({
-    ...d,
-    label: monthLabel(d),
-  }))
+  /* Points avec uniquement le Pocket Global + variation vs mois précédent. */
+  const chartData = data.map((d, i) => {
+    const prev = i > 0 ? data[i - 1].pocketGlobal : null
+    return {
+      label: monthLabel(d),
+      pocketGlobal: d.pocketGlobal,
+      delta:
+        prev == null || d.pocketGlobal == null ? null : d.pocketGlobal - prev,
+    }
+  })
+
+  const values = chartData.map((d) => d.pocketGlobal).filter((v) => v != null)
+  const first = values[0] ?? 0
+  const last = values[values.length - 1] ?? 0
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const periodChange = last - first
+  const periodPct = first !== 0 ? periodChange / first : 0
+  const up = periodChange >= 0
 
   return (
-    <div
-      className="rounded-xl p-3"
-      style={{ background: '#131929' }}
-    >
-      <Legend
-        content={renderLegend}
-        verticalAlign="top"
-        wrapperStyle={{ position: 'relative' }}
-      />
-      <div style={{ width: '100%', height: 320 }}>
+    <div className="rounded-xl p-4" style={{ background: '#131929' }}>
+      {/* En-tête : valeur actuelle + variation sur la période */}
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p
+            className="text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+          >
+            Pocket Global aujourd’hui
+          </p>
+          <p
+            className="font-num text-2xl font-bold tabular-nums"
+            style={{ color: '#fff', textShadow: `0 0 20px ${ACCENT}55` }}
+          >
+            {formatCurrency(last)}
+          </p>
+        </div>
+        <div
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-num text-sm font-semibold tabular-nums"
+          style={{
+            background: up ? 'rgba(0,229,160,0.12)' : 'rgba(255,77,106,0.12)',
+            color: up ? '#00E5A0' : '#FF4D6A',
+          }}
+        >
+          {up ? (
+            <ArrowUpRight className="h-4 w-4" />
+          ) : (
+            <ArrowDownRight className="h-4 w-4" />
+          )}
+          {up ? '+' : '−'}
+          {formatCurrency(Math.abs(periodChange), { compact: true })}
+          <span style={{ color: 'rgba(255,255,255,0.35)' }}>
+            ({up ? '+' : '−'}
+            {formatPercent(Math.abs(periodPct), 0)})
+          </span>
+        </div>
+      </div>
+
+      <div style={{ width: '100%', height: 300 }}>
         <ResponsiveContainer>
-          <ComposedChart
+          <AreaChart
             data={chartData}
             margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
           >
-            <CartesianGrid
-              stroke="rgba(255,255,255,0.05)"
-              vertical={false}
-            />
+            <defs>
+              <linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={ACCENT} stopOpacity={0.35} />
+                <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis
               dataKey="label"
               tick={AXIS_TICK}
@@ -162,6 +178,7 @@ export default function YearlyChart({ data }) {
               tick={AXIS_TICK}
               axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
               tickLine={false}
+              domain={['dataMin', 'dataMax']}
               tickFormatter={(v) =>
                 formatCurrency(v, { compact: true }).replace(/\s/g, '')
               }
@@ -172,50 +189,45 @@ export default function YearlyChart({ data }) {
               cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
             />
 
+            {/* Repères min / max sur la période */}
+            <ReferenceLine
+              y={max}
+              stroke="rgba(0,229,160,0.25)"
+              strokeDasharray="3 3"
+              label={{
+                value: `Max ${formatCurrency(max, { compact: true })}`,
+                position: 'insideTopLeft',
+                fill: 'rgba(0,229,160,0.6)',
+                fontSize: 10,
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            />
+            <ReferenceLine
+              y={min}
+              stroke="rgba(255,77,106,0.25)"
+              strokeDasharray="3 3"
+              label={{
+                value: `Min ${formatCurrency(min, { compact: true })}`,
+                position: 'insideBottomLeft',
+                fill: 'rgba(255,77,106,0.6)',
+                fontSize: 10,
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            />
+
             <Area
               type="monotone"
               dataKey="pocketGlobal"
               name="Pocket Global"
-              stroke="#7C6FFF"
-              strokeWidth={2}
-              fill="#7C6FFF"
-              fillOpacity={0.05}
-              dot={false}
-              activeDot={{ r: 4, fill: '#7C6FFF', stroke: '#7C6FFF' }}
+              stroke={ACCENT}
+              strokeWidth={2.5}
+              fill="url(#pgFill)"
+              dot={{ r: 3, fill: '#131929', stroke: ACCENT, strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: ACCENT, stroke: '#fff', strokeWidth: 2 }}
+              connectNulls
               isAnimationActive={false}
             />
-            <Line
-              type="monotone"
-              dataKey="revenus"
-              name="Revenus"
-              stroke="#00E5A0"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: '#00E5A0', stroke: '#00E5A0' }}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="depenses"
-              name="Dépenses"
-              stroke="#FF4D6A"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: '#FF4D6A', stroke: '#FF4D6A' }}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="soldeBancaire"
-              name="Solde bancaire"
-              stroke="#FFB84D"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              activeDot={{ r: 4, fill: '#FFB84D', stroke: '#FFB84D' }}
-              isAnimationActive={false}
-            />
-          </ComposedChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
