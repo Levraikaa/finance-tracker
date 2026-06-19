@@ -178,6 +178,19 @@ export function FinanceProvider({ children }) {
     [setTransactions],
   )
 
+  /* Met à jour la note libre d'une transaction (persistée avec la
+     transaction dans kaafinance.transactions.v2). Une note vide est
+     normalisée en chaîne vide. */
+  const updateTransactionNote = useCallback(
+    (id, note) => {
+      const value = String(note ?? '').trim()
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, note: value } : t)),
+      )
+    },
+    [setTransactions],
+  )
+
   const upsertBudget = useCallback(
     (data) => {
       setBudgets((prev) => {
@@ -444,6 +457,7 @@ export function FinanceProvider({ children }) {
       addTransaction,
       recordAutoDebit,
       deleteTransaction,
+      updateTransactionNote,
       upsertBudget,
       deleteBudget,
       addCrypto,
@@ -471,6 +485,7 @@ export function FinanceProvider({ children }) {
       addTransaction,
       recordAutoDebit,
       deleteTransaction,
+      updateTransactionNote,
       upsertBudget,
       deleteBudget,
       addCrypto,

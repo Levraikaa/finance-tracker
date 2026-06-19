@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { MessageSquare, Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { getCategory, isReimbursement } from '../../lib/categories.js'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
+import { useFinance } from '../../context/FinanceContext.jsx'
 import { formatCurrency, formatDateShort, formatDayLabel } from '../../lib/format.js'
 
 /* Liste de transactions réutilisable (aperçu + vue complète).
@@ -86,86 +87,160 @@ function GroupedTransactionList({ transactions, onDelete }) {
 }
 
 function TransactionList({ transactions, onDelete }) {
-  const { getDisplay } = useCategoryOverrides()
-
   return (
     <ul className="divide-y divide-line-soft">
-      {transactions.map((t) => {
-        const cat = getCategory(t.category)
-        const disp = getDisplay(t.category)
-        const income = t.type === 'income'
-        const reimbursement = isReimbursement(t.category)
-        const pill = reimbursement
-          ? { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
-          : cat.type === 'expense'
-          ? { backgroundColor: `${disp.color}26`, color: disp.color }
-          : null
-        return (
-          <li key={t.id} className="group flex items-center gap-3 py-3">
-            <span
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                pill ? '' : 'bg-accent/15 text-accent'
-              }`}
-              style={pill ?? undefined}
-            >
-              <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium">{t.description}</p>
-                {reimbursement && (
-                  <span
-                    className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                      backgroundColor: 'rgba(255,184,77,0.15)',
-                      color: '#FFB84D',
-                    }}
-                  >
-                    Remboursement
-                  </span>
-                )}
-                {t.auto && (
-                  <span
-                    className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.08)',
-                      color: 'rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    Auto
-                  </span>
-                )}
-              </div>
-              <p className="truncate text-xs text-muted">
-                {disp.name} · {formatDateShort(t.date)}
-              </p>
-            </div>
-            <span
-              className={`shrink-0 font-num text-sm font-semibold tabular-nums ${
-                reimbursement
-                  ? ''
-                  : income
-                  ? 'text-positive'
-                  : 'text-ink'
-              }`}
-              style={reimbursement ? { color: '#FFB84D' } : undefined}
-            >
-              {income ? '+' : '−'}
-              {formatCurrency(t.amount)}
-            </span>
-            {onDelete && (
-              <button
-                type="button"
-                onClick={() => onDelete(t.id)}
-                aria-label={`Supprimer ${t.description}`}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-faint transition-all hover:bg-elevated hover:text-negative sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </li>
-        )
-      })}
+      {transactions.map((t) => (
+        <TransactionRow key={t.id} t={t} onDelete={onDelete} />
+      ))}
     </ul>
+  )
+}
+
+function TransactionRow({ t, onDelete }) {
+  const { getDisplay } = useCategoryOverrides()
+  const { updateTransactionNote } = useFinance()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(t.note ?? '')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [editing])
+
+  const cat = getCategory(t.category)
+  const disp = getDisplay(t.category)
+  const income = t.type === 'income'
+  const reimbursement = isReimbursement(t.category)
+  const hasNote = Boolean(t.note && t.note.trim())
+
+  const pill = reimbursement
+    ? { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
+    : cat.type === 'expense'
+    ? { backgroundColor: `${disp.color}26`, color: disp.color }
+    : null
+
+  const openNote = () => {
+    setDraft(t.note ?? '')
+    setEditing(true)
+  }
+  const commit = () => {
+    updateTransactionNote(t.id, draft)
+    setEditing(false)
+  }
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditing(false)
+    }
+  }
+
+  return (
+    <li className="group py-3">
+      <div className="flex items-center gap-3">
+        <span
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+            pill ? '' : 'bg-accent/15 text-accent'
+          }`}
+          style={pill ?? undefined}
+        >
+          <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium">{t.description}</p>
+            {reimbursement && (
+              <span
+                className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                style={{
+                  backgroundColor: 'rgba(255,184,77,0.15)',
+                  color: '#FFB84D',
+                }}
+              >
+                Remboursement
+              </span>
+            )}
+            {t.auto && (
+              <span
+                className="shrink-0 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.3)',
+                }}
+              >
+                Auto
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-muted">
+            {disp.name} · {formatDateShort(t.date)}
+          </p>
+          {hasNote && !editing && (
+            <p className="truncate font-sans text-[12px] italic text-white/40">
+              {t.note}
+            </p>
+          )}
+        </div>
+        <span
+          className={`shrink-0 font-num text-sm font-semibold tabular-nums ${
+            reimbursement ? '' : income ? 'text-positive' : 'text-ink'
+          }`}
+          style={reimbursement ? { color: '#FFB84D' } : undefined}
+        >
+          {income ? '+' : '−'}
+          {formatCurrency(t.amount)}
+        </span>
+        <button
+          type="button"
+          onClick={() => (editing ? commit() : openNote())}
+          aria-label={hasNote ? `Modifier la note de ${t.description}` : `Ajouter une note à ${t.description}`}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors hover:bg-elevated"
+          style={{ color: hasNote ? '#7C6FFF' : 'rgba(255,255,255,0.2)' }}
+        >
+          <MessageSquare className="h-4 w-4" />
+        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(t.id)}
+            aria-label={`Supprimer ${t.description}`}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-faint transition-all hover:bg-elevated hover:text-negative sm:opacity-0 sm:group-hover:opacity-100"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Champ de note inline — apparition fluide 200ms */}
+      <div
+        className={`grid transition-all duration-200 ease-out ${
+          editing ? 'mt-2 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden pl-13">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={commit}
+            tabIndex={editing ? 0 : -1}
+            placeholder="Ajouter une note…"
+            className="w-full rounded-lg text-sm text-ink outline-none transition-colors placeholder:text-white/30 focus:border-accent/60"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              padding: '8px 12px',
+            }}
+          />
+        </div>
+      </div>
+    </li>
   )
 }
