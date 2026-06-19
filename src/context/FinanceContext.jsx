@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage.js'
 import { seedBudgets, seedTransactions } from '../lib/sampleData.js'
-import { migratePockets, seedPockets } from '../lib/pockets.js'
+import { adjustPocket, migratePockets, seedPockets } from '../lib/pockets.js'
 import { totals } from '../lib/selectors.js'
 import { uid } from '../lib/format.js'
 
@@ -362,13 +362,10 @@ export function FinanceProvider({ children }) {
             ...prev,
           ])
         } else {
-          setPockets((prev) =>
-            prev.map((p) =>
-              p.key === account
-                ? { ...p, amount: Math.max(0, p.amount - value) }
-                : p,
-            ),
-          )
+          /* Pocket source : upsert (-value). adjustPocket crée l'entrée si
+             elle manque, ce qui ne devrait plus arriver grâce à la migration,
+             mais reste un filet de sécurité. */
+          setPockets((prev) => adjustPocket(prev, account, -value))
         }
       }
 
@@ -384,11 +381,9 @@ export function FinanceProvider({ children }) {
             ...prev,
           ])
         } else {
-          setPockets((prev) =>
-            prev.map((p) =>
-              p.key === account ? { ...p, amount: p.amount + value } : p,
-            ),
-          )
+          /* Pocket destination : upsert (+value). Un crédit vers un pocket
+             absent n'est désormais plus perdu — il est créé avec le montant. */
+          setPockets((prev) => adjustPocket(prev, account, value))
         }
       }
 
