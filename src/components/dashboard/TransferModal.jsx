@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRightLeft } from 'lucide-react'
 import Modal from '../ui/Modal.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { formatCurrency } from '../../lib/format.js'
@@ -34,6 +34,25 @@ export default function TransferModal({ defaultTo, onClose }) {
   const [to, setTo] = useState(defaultTo ?? 'fondsMonetaires')
   const [error, setError] = useState('')
 
+  /* Sélection sans deadlock : si on choisit une valeur déjà prise par
+     l'autre champ, on les permute (l'ancienne source devient destination,
+     et inversement). Garantit que TOUS les sens sont composables. */
+  const chooseFrom = (next) => {
+    setError('')
+    if (next === to) setTo(from)
+    setFrom(next)
+  }
+  const chooseTo = (next) => {
+    setError('')
+    if (next === from) setFrom(to)
+    setTo(next)
+  }
+  const swap = () => {
+    setError('')
+    setFrom(to)
+    setTo(from)
+  }
+
   const balances = useMemo(() => {
     const pocketAmount = (k) => pockets.find((p) => p.key === k)?.amount ?? 0
     return {
@@ -48,6 +67,13 @@ export default function TransferModal({ defaultTo, onClose }) {
   const submit = (e) => {
     e.preventDefault()
     const value = parseFloat(String(amount).replace(',', '.'))
+
+    /* Diagnostic : valeurs exactes reçues au moment du confirm. */
+    console.log(
+      `[KAAFINANCE][Transfert] De = "${from}" (${labelOf(from)}) | ` +
+        `Vers = "${to}" (${labelOf(to)}) | Montant = ${value}`,
+    )
+
     if (!Number.isFinite(value) || value <= 0) {
       setError('Saisissez un montant supérieur à 0.')
       return
@@ -114,14 +140,11 @@ export default function TransferModal({ defaultTo, onClose }) {
             <select
               id="transfer-from"
               value={from}
-              onChange={(e) => {
-                setFrom(e.target.value)
-                setError('')
-              }}
+              onChange={(e) => chooseFrom(e.target.value)}
               className={FIELD}
             >
               {ACCOUNTS.map((a) => (
-                <option key={a.key} value={a.key} disabled={a.key === to}>
+                <option key={a.key} value={a.key}>
                   {a.label} — {formatCurrency(balances[a.key])}
                 </option>
               ))}
@@ -129,9 +152,14 @@ export default function TransferModal({ defaultTo, onClose }) {
           </div>
 
           <div className="hidden place-items-center pb-2 sm:grid">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-accent/15 text-accent">
-              <ArrowRight className="h-4 w-4" />
-            </span>
+            <button
+              type="button"
+              onClick={swap}
+              aria-label="Inverser source et destination"
+              className="grid h-9 w-9 place-items-center rounded-full bg-accent/15 text-accent transition-colors hover:bg-accent/25"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+            </button>
           </div>
 
           <div>
@@ -144,14 +172,11 @@ export default function TransferModal({ defaultTo, onClose }) {
             <select
               id="transfer-to"
               value={to}
-              onChange={(e) => {
-                setTo(e.target.value)
-                setError('')
-              }}
+              onChange={(e) => chooseTo(e.target.value)}
               className={FIELD}
             >
               {ACCOUNTS.map((a) => (
-                <option key={a.key} value={a.key} disabled={a.key === from}>
+                <option key={a.key} value={a.key}>
                   {a.label} — {formatCurrency(balances[a.key])}
                 </option>
               ))}
