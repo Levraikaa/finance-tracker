@@ -1,16 +1,22 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import SubscriptionsSection from './SubscriptionsSection.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
+import { useUpcomingSubscriptions } from '../../hooks/useUpcomingSubscriptions.js'
 import { CATEGORIES, EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
-import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
+import { formatCurrency, formatDate, formatPercent, monthKey } from '../../lib/format.js'
 import { budgetStatus } from '../../lib/selectors.js'
+import {
+  daysUntilLabel,
+  formatSubscriptionAmount,
+} from '../../lib/subscriptions.js'
 
 export default function BudgetsView({ month }) {
   const { budgets, transactions, upsertBudget, deleteBudget } = useFinance()
   const { getDisplay } = useCategoryOverrides()
+  const upcoming = useUpcomingSubscriptions()
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
   const [limit, setLimit] = useState('')
 
@@ -49,6 +55,60 @@ export default function BudgetsView({ month }) {
 
   return (
     <div className="space-y-5">
+      {/* Bandeau alerte abonnements imminents */}
+      {upcoming.length > 0 && (
+        <div
+          className="rounded-xl p-4"
+          style={{
+            background: 'rgba(255,184,77,0.10)',
+            border: '1px solid rgba(255,184,77,0.3)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle
+              className="h-4 w-4 shrink-0"
+              style={{ color: '#FFB84D' }}
+            />
+            <p className="text-sm font-semibold" style={{ color: '#FFB84D' }}>
+              {upcoming.length} abonnement{upcoming.length > 1 ? 's' : ''} se
+              débite{upcoming.length > 1 ? 'nt' : ''} dans moins de 3 jours
+            </p>
+          </div>
+          <ul className="mt-3 space-y-1.5">
+            {upcoming.map((s) => (
+              <li
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <span className="font-medium text-ink">{s.name}</span>
+                <span className="flex items-center gap-2.5">
+                  <span className="font-num font-semibold tabular-nums text-ink">
+                    {formatSubscriptionAmount(s)}
+                  </span>
+                  <span className="capitalize text-muted">
+                    {formatDate(s.nextDate, {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </span>
+                  <span
+                    className="rounded-md px-2 py-0.5 text-xs font-semibold"
+                    style={
+                      s.isToday
+                        ? { background: 'rgba(255,77,106,0.15)', color: '#FF4D6A' }
+                        : { background: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
+                    }
+                  >
+                    {daysUntilLabel(s.daysUntil)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Résumé */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-2xl border border-line bg-surface p-4">

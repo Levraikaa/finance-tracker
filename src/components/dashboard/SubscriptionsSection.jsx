@@ -5,9 +5,15 @@ import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { EXPENSE_CATEGORIES } from '../../lib/categories.js'
 import { formatCurrency, uid } from '../../lib/format.js'
+import {
+  SUBSCRIPTIONS_KEY,
+  DEFAULT_SUBSCRIPTION_CATEGORY,
+  seedSubscriptions,
+  nextDebitInfo,
+} from '../../lib/subscriptions.js'
 
-const STORAGE_KEY = 'kaa_abonnements'
-const DEFAULT_CATEGORY = 'abonnements'
+const STORAGE_KEY = SUBSCRIPTIONS_KEY
+const DEFAULT_CATEGORY = DEFAULT_SUBSCRIPTION_CATEGORY
 
 const CURRENCIES = ['EUR', 'IDR']
 const METHODS = [
@@ -16,22 +22,6 @@ const METHODS = [
 ]
 
 const METHOD_BY_ID = Object.fromEntries(METHODS.map((m) => [m.id, m]))
-
-/* Pré-remplissage : abonnements de référence. Modifiables et
-   supprimables ensuite par l'utilisateur. La majorité tombe sous
-   « Abonnements », sauf Salle de sport qui pointe vers « Sport »
-   pour que le débit alimente directement le budget Sport. */
-const DEFAULTS = [
-  { name: 'Loyer', amount: 0, currency: 'EUR', day: 1, method: 'compte', category: 'abonnements' },
-  { name: 'Scooter', amount: 0, currency: 'IDR', day: 5, method: 'cash', category: 'transport' },
-  { name: 'Revolut Metal', amount: 0, currency: 'EUR', day: 10, method: 'compte', category: 'abonnements' },
-  { name: 'Forfait téléphone', amount: 0, currency: 'EUR', day: 15, method: 'compte', category: 'abonnements' },
-  { name: 'iTunes', amount: 0, currency: 'EUR', day: 20, method: 'compte', category: 'abonnements' },
-  { name: 'Salle de sport', amount: 0, currency: 'EUR', day: 1, method: 'compte', category: 'sport' },
-]
-
-const seedSubscriptions = () =>
-  DEFAULTS.map((s) => ({ id: uid(), ...s }))
 
 function formatIdr(value) {
   return new Intl.NumberFormat('fr-FR', {
@@ -207,11 +197,31 @@ function SubscriptionRow({ sub, fx, onEdit, onDelete, getDisplay }) {
   const categoryColor = disp.color
   const eur = toEur(sub.amount, sub.currency, fx.rate)
 
+  /* Rappel imminent : prélèvement aujourd'hui ou dans <= 3 jours. */
+  const upcoming = Number(sub.amount) > 0 ? nextDebitInfo(sub) : null
+  const imminent = upcoming && upcoming.daysUntil >= 0 && upcoming.daysUntil <= 3
+
   return (
     <li className="rounded-xl border border-line bg-canvas p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{sub.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-ink">{sub.name}</p>
+            {imminent && (
+              <span
+                className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                style={
+                  upcoming.isToday
+                    ? { background: 'rgba(255,77,106,0.15)', color: '#FF4D6A' }
+                    : { background: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
+                }
+              >
+                {upcoming.isToday
+                  ? "Aujourd'hui"
+                  : `Dans ${upcoming.daysUntil} jour${upcoming.daysUntil > 1 ? 's' : ''}`}
+              </span>
+            )}
+          </div>
           <p className="mt-1 font-num text-base font-bold tabular-nums text-ink">
             {formatOriginal(sub.amount, sub.currency)}
           </p>

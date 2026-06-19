@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import Logo from '../ui/Logo.jsx'
 import { NAV } from './nav.js'
+import { useUpcomingSubscriptions } from '../../hooks/useUpcomingSubscriptions.js'
 
 /* Barre de navigation horizontale fixe — logo, onglets, actions. */
 export default function Navbar({
@@ -16,6 +17,9 @@ export default function Navbar({
     month: 'long',
     year: 'numeric',
   }).format(month)
+
+  /* Abonnements imminents -> badge rouge sur l'onglet Budgets. */
+  const upcomingCount = useUpcomingSubscriptions().length
 
   return (
     <header
@@ -43,6 +47,15 @@ export default function Navbar({
                 }`}
               >
                 {item.label}
+                {item.id === 'budgets' && upcomingCount > 0 && (
+                  <span
+                    className="absolute right-0 top-3 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none text-white sm:right-1"
+                    style={{ background: '#FF4D6A' }}
+                    aria-label={`${upcomingCount} abonnement(s) imminent(s)`}
+                  >
+                    {upcomingCount}
+                  </span>
+                )}
                 {active && (
                   <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />
                 )}
