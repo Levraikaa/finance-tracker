@@ -34,6 +34,20 @@ export function formatDateShort(iso) {
   )
 }
 
+/** Libellé de groupe journalier : « Aujourd'hui », « Hier » ou « Lundi 12 juin ». */
+export function formatDayLabel(iso) {
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate())
+  const diff = Math.round((startOfDay(new Date()) - startOfDay(new Date(iso))) / 86400000)
+  if (diff === 0) return "Aujourd'hui"
+  if (diff === 1) return 'Hier'
+  const label = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(iso))
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
 export function formatMonthLabel(iso) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'short' })
     .format(new Date(iso))

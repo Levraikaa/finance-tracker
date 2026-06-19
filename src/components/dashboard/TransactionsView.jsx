@@ -102,6 +102,7 @@ export default function TransactionsView({ month, onAdd }) {
           <TransactionTable
             transactions={filtered}
             onDelete={deleteTransaction}
+            grouped
             emptyLabel="Aucune transaction à afficher pour ce mois."
           />
         </div>

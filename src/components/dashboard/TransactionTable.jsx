@@ -1,13 +1,16 @@
+import { useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { getCategory, isReimbursement } from '../../lib/categories.js'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
-import { formatCurrency, formatDateShort } from '../../lib/format.js'
+import { formatCurrency, formatDateShort, formatDayLabel } from '../../lib/format.js'
 
-/* Liste de transactions réutilisable (aperçu + vue complète). */
+/* Liste de transactions réutilisable (aperçu + vue complète).
+   `grouped` regroupe les transactions par jour (vue Transactions). */
 export default function TransactionTable({
   transactions,
   onDelete,
+  grouped = false,
   emptyLabel = 'Aucune transaction pour le moment.',
 }) {
   if (!transactions.length) {
@@ -18,7 +21,68 @@ export default function TransactionTable({
     )
   }
 
+  if (grouped) {
+    return <GroupedTransactionList transactions={transactions} onDelete={onDelete} />
+  }
+
   return <TransactionList transactions={transactions} onDelete={onDelete} />
+}
+
+/** Clé de jour locale, ex. « 2026-06-12 ». */
+function dayKey(iso) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`
+}
+
+/* Regroupe les transactions par jour : groupes du plus récent au plus ancien,
+   transactions chronologiques (anciennes → récentes) à l'intérieur de chaque jour,
+   et total net du jour (revenus − dépenses). */
+function groupByDay(transactions) {
+  const map = new Map()
+  for (const t of transactions) {
+    const key = dayKey(t.date)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push(t)
+  }
+  return [...map.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .map(([key, items]) => ({
+      key,
+      items: [...items].sort((a, b) => new Date(a.date) - new Date(b.date)),
+      net: items.reduce(
+        (s, t) =>
+          s + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0),
+        0,
+      ),
+    }))
+}
+
+function GroupedTransactionList({ transactions, onDelete }) {
+  const groups = useMemo(() => groupByDay(transactions), [transactions])
+
+  return (
+    <div>
+      {groups.map((g, i) => (
+        <div key={g.key} className={i > 0 ? 'border-t border-line' : ''}>
+          <div className="flex items-center justify-between pb-2 pt-4">
+            <span className="font-sans text-[11px] uppercase tracking-[0.08em] text-white/30">
+              {formatDayLabel(g.items[0].date)}
+            </span>
+            <span
+              className={`font-num text-xs font-semibold tabular-nums ${
+                g.net < 0 ? 'text-negative' : 'text-positive'
+              }`}
+            >
+              {formatCurrency(g.net, { sign: true })}
+            </span>
+          </div>
+          <TransactionList transactions={g.items} onDelete={onDelete} />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function TransactionList({ transactions, onDelete }) {
