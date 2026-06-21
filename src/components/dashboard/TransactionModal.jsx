@@ -3,6 +3,8 @@ import Modal from '../ui/Modal.jsx'
 import DatePicker from './DatePicker.jsx'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
+import { useIdrRate } from '../../hooks/useIdrRate.js'
+import { formatCurrency } from '../../lib/format.js'
 import {
   CATEGORIES,
   EXPENSE_CATEGORIES,
@@ -11,18 +13,37 @@ import {
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 
+/* Devises saisissables. Tout est stocké en EUR : un montant en IDR est
+   converti au taux du jour (useIdrRate) au moment de l'enregistrement,
+   comme pour les abonnements. */
+const CURRENCIES = ['EUR', 'IDR']
+const CURRENCY_SYMBOL = { EUR: '€', IDR: 'Rp' }
+
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-accent/60'
 
 export default function TransactionModal({ open, onClose }) {
   const { addTransaction } = useFinance()
+  const fx = useIdrRate()
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('EUR')
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
   const [paymentMethod, setPaymentMethod] = useState('compte')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(todayISO())
   const [error, setError] = useState('')
+
+  /* Montant saisi converti en EUR (null si IDR sans taux disponible). */
+  const rawAmount = parseFloat(String(amount).replace(',', '.'))
+  const eurAmount =
+    !Number.isFinite(rawAmount)
+      ? null
+      : currency === 'EUR'
+      ? rawAmount
+      : fx.status === 'ok' && fx.rate > 0
+      ? rawAmount * fx.rate
+      : null
 
   const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
 
@@ -37,6 +58,7 @@ export default function TransactionModal({ open, onClose }) {
   const reset = () => {
     setType('expense')
     setAmount('')
+    setCurrency('EUR')
     setCategory(EXPENSE_CATEGORIES[0])
     setPaymentMethod('compte')
     setDescription('')
@@ -51,12 +73,15 @@ export default function TransactionModal({ open, onClose }) {
 
   const submit = (e) => {
     e.preventDefault()
-    const value = parseFloat(String(amount).replace(',', '.'))
-    if (!Number.isFinite(value) || value <= 0) {
+    if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
       setError('Saisissez un montant supérieur à 0.')
       return
     }
-    addTransaction({ type, amount: value, category, description, date, paymentMethod })
+    if (currency === 'IDR' && eurAmount == null) {
+      setError('Taux IDR indisponible pour le moment, réessaie dans un instant.')
+      return
+    }
+    addTransaction({ type, amount: eurAmount, category, description, date, paymentMethod })
     reset()
     onClose()
   }
@@ -92,31 +117,57 @@ export default function TransactionModal({ open, onClose }) {
           ))}
         </div>
 
-        {/* Montant */}
+        {/* Montant + devise */}
         <div>
           <label className="mb-1.5 block text-sm font-medium" htmlFor="amount">
             Montant
           </label>
-          <div className="relative">
-            <input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              value={amount}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value)
+                  setError('')
+                }}
+                placeholder="0,00"
+                className={`${FIELD} pr-9 font-num`}
+                autoFocus
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-faint">
+                {CURRENCY_SYMBOL[currency]}
+              </span>
+            </div>
+            <select
+              value={currency}
               onChange={(e) => {
-                setAmount(e.target.value)
+                setCurrency(e.target.value)
                 setError('')
               }}
-              placeholder="0,00"
-              className={`${FIELD} pr-9 font-num`}
-              autoFocus
-            />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-faint">
-              €
-            </span>
+              aria-label="Devise"
+              className="rounded-lg border border-line bg-canvas px-3 py-2.5 text-sm font-semibold text-ink outline-none transition-colors focus:border-accent/60 [color-scheme:dark]"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
+          {currency === 'IDR' && (
+            <p className="mt-1.5 text-xs text-muted">
+              {eurAmount != null
+                ? `≈ ${formatCurrency(eurAmount)} au taux du jour`
+                : fx.status === 'loading'
+                ? 'Récupération du taux IDR…'
+                : 'Taux IDR indisponible pour le moment.'}
+            </p>
+          )}
         </div>
 
         {/* Moyen de paiement — dépenses uniquement */}
