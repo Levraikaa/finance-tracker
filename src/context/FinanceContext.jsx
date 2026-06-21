@@ -96,27 +96,72 @@ export function FinanceProvider({ children }) {
     () => [],
   )
 
+  /* Ajoute une transaction et route le solde selon le moyen de paiement.
+     Le moyen de paiement ne concerne que les dépenses (un revenu crédite
+     toujours le compte bancaire) :
+     - `compte` : la dépense réduit naturellement le solde bancaire.
+     - `cash`   : on neutralise l'effet sur le solde bancaire (ajustement
+                  positif) et on débite le pocket Cash. La transaction reste
+                  comptée dans les stats / budgets. Les écritures de
+                  compensation portent l'id de la transaction (`txId`) afin
+                  d'être purgées à sa suppression. */
   const addTransaction = useCallback(
     (data) => {
+      const value = Math.abs(Number(data.amount)) || 0
+      const stamp = data.date
+        ? new Date(data.date).toISOString()
+        : new Date().toISOString()
+      const id = uid()
+      const method =
+        data.type === 'expense'
+          ? data.paymentMethod === 'cash'
+            ? 'cash'
+            : 'compte'
+          : null
+      const isCash = method === 'cash' && value > 0
+      const label = data.description?.trim() || 'Dépense'
+
       setTransactions((prev) =>
         sortByDate([
           {
-            id: uid(),
+            id,
             type: data.type,
-            amount: Math.abs(Number(data.amount)) || 0,
+            amount: value,
             category: data.category,
             description: data.description?.trim() || 'Sans description',
-            date: data.date
-              ? new Date(data.date).toISOString()
-              : new Date().toISOString(),
+            date: stamp,
             ...(data.auto ? { auto: true } : {}),
-            ...(data.paymentMethod ? { paymentMethod: data.paymentMethod } : {}),
+            ...(method ? { paymentMethod: method } : {}),
           },
           ...prev,
         ]),
       )
+
+      if (isCash) {
+        setBankAdjustments((prev) => [
+          {
+            id: uid(),
+            txId: id,
+            delta: value,
+            description: `Compensation paiement cash : ${label}`,
+            date: stamp,
+          },
+          ...prev,
+        ])
+        setCashMovements((prev) => [
+          {
+            id: uid(),
+            txId: id,
+            type: 'remove',
+            amount: value,
+            description: `Cash : ${label}`,
+            date: stamp,
+          },
+          ...prev,
+        ])
+      }
     },
-    [setTransactions],
+    [setTransactions, setBankAdjustments, setCashMovements],
   )
 
   /* Débit automatique d'un abonnement : crée la dépense + route le
@@ -131,11 +176,12 @@ export function FinanceProvider({ children }) {
       if (value <= 0) return
       const stamp = new Date().toISOString()
       const safeMethod = method === 'cash' ? 'cash' : 'compte'
+      const id = uid()
 
       setTransactions((prev) =>
         sortByDate([
           {
-            id: uid(),
+            id,
             type: 'expense',
             amount: value,
             category,
@@ -152,6 +198,7 @@ export function FinanceProvider({ children }) {
         setBankAdjustments((prev) => [
           {
             id: uid(),
+            txId: id,
             delta: value,
             description: `Compensation paiement cash : ${name}`,
             date: stamp,
@@ -161,6 +208,7 @@ export function FinanceProvider({ children }) {
         setCashMovements((prev) => [
           {
             id: uid(),
+            txId: id,
             type: 'remove',
             amount: value,
             description: `Auto : ${name}`,
@@ -173,9 +221,16 @@ export function FinanceProvider({ children }) {
     [setTransactions, setBankAdjustments, setCashMovements],
   )
 
+  /* Supprime une transaction et purge ses éventuelles écritures de
+     compensation cash (liées par `txId`). Les écritures sans `txId`
+     (transferts, ajustements manuels) ne sont jamais affectées. */
   const deleteTransaction = useCallback(
-    (id) => setTransactions((prev) => prev.filter((t) => t.id !== id)),
-    [setTransactions],
+    (id) => {
+      setTransactions((prev) => prev.filter((t) => t.id !== id))
+      setBankAdjustments((prev) => prev.filter((a) => a.txId !== id))
+      setCashMovements((prev) => prev.filter((m) => m.txId !== id))
+    },
+    [setTransactions, setBankAdjustments, setCashMovements],
   )
 
   /* Met à jour la note libre d'une transaction (persistée avec la

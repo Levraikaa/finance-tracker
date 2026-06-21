@@ -19,6 +19,7 @@ export default function TransactionModal({ open, onClose }) {
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
+  const [paymentMethod, setPaymentMethod] = useState('compte')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(todayISO())
   const [error, setError] = useState('')
@@ -37,6 +38,7 @@ export default function TransactionModal({ open, onClose }) {
     setType('expense')
     setAmount('')
     setCategory(EXPENSE_CATEGORIES[0])
+    setPaymentMethod('compte')
     setDescription('')
     setDate(todayISO())
     setError('')
@@ -54,7 +56,7 @@ export default function TransactionModal({ open, onClose }) {
       setError('Saisissez un montant supérieur à 0.')
       return
     }
-    addTransaction({ type, amount: value, category, description, date })
+    addTransaction({ type, amount: value, category, description, date, paymentMethod })
     reset()
     onClose()
   }
@@ -116,6 +118,40 @@ export default function TransactionModal({ open, onClose }) {
             </span>
           </div>
         </div>
+
+        {/* Moyen de paiement — dépenses uniquement */}
+        {type === 'expense' && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Moyen de paiement
+            </label>
+            <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-canvas p-1">
+              {[
+                { id: 'compte', label: 'Compte courant', color: '#7C6FFF' },
+                { id: 'cash', label: 'Cash', color: '#FFB84D' },
+              ].map((opt) => {
+                const active = paymentMethod === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(opt.id)}
+                    className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
+                      active ? '' : 'text-muted hover:text-ink'
+                    }`}
+                    style={
+                      active
+                        ? { backgroundColor: `${opt.color}26`, color: opt.color }
+                        : undefined
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Catégorie */}
         <div>

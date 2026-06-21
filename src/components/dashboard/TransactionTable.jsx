@@ -115,6 +115,11 @@ function TransactionRow({ t, onDelete }) {
   const income = t.type === 'income'
   const reimbursement = isReimbursement(t.category)
   const hasNote = Boolean(t.note && t.note.trim())
+  /* Moyen de paiement — défaut « compte » pour les transactions
+     antérieures à cette donnée (migration implicite). */
+  const cash = t.paymentMethod === 'cash'
+  const payColor = cash ? '#FFB84D' : '#7C6FFF'
+  const payLabel = cash ? 'Cash' : 'Compte'
 
   const pill = reimbursement
     ? { backgroundColor: 'rgba(255,184,77,0.15)', color: '#FFB84D' }
@@ -177,9 +182,17 @@ function TransactionRow({ t, onDelete }) {
               </span>
             )}
           </div>
-          <p className="truncate text-xs text-muted">
-            {disp.name} · {formatDateShort(t.date)}
-          </p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ backgroundColor: `${payColor}26`, color: payColor }}
+            >
+              {payLabel}
+            </span>
+            <p className="truncate text-xs text-muted">
+              {disp.name} · {formatDateShort(t.date)}
+            </p>
+          </div>
           {hasNote && !editing && (
             <p className="truncate font-sans text-[12px] italic text-white/40">
               {t.note}
