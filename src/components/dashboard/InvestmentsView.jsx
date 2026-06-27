@@ -24,7 +24,7 @@ import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
 import { getCryptoMeta, stakingInterest } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent } from '../../lib/format.js'
 
-const FONDS_MONETAIRES_APY = 0.0201
+const FONDS_MONETAIRES_APY = 0.0219
 
 /* Liste ordonnée des pockets affichés dans la grille.
    Fonds monétaires : accent orange + APY visible directement sur la card. */
