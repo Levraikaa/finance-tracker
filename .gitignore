@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Env / secrets (clé API du Conseiller IA)
+# Env / secrets
 .env
 .env.*
 !.env.example

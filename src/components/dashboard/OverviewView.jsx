@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { ArrowRight, TrendingDown, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
-import AdvisorModal from './AdvisorModal.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
 import MonthlyGoalCard from './MonthlyGoalCard.jsx'
@@ -118,16 +117,6 @@ export default function OverviewView({ month, onNavigate }) {
       />
 
       <div className="space-y-5">
-      {/* En-tête : titre + accès au Conseiller IA */}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-xl font-semibold">Vue d'ensemble</h1>
-        <AdvisorModal
-          month={month}
-          pocketGlobal={pocketGlobal}
-          projection={projection}
-        />
-      </div>
-
       {/* Indicateurs clés */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
