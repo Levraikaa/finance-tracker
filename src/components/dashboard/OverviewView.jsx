@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ArrowRight, TrendingDown, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
+import AdvisorModal from './AdvisorModal.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
 import MonthlyGoalCard from './MonthlyGoalCard.jsx'
@@ -17,11 +18,10 @@ import {
   categoryBreakdown,
   delta,
   filterByMonth,
+  monthEndProjection,
   totals,
   trackingDailySeries,
 } from '../../lib/selectors.js'
-
-const CHART_START = new Date(2026, 3, 1) // avril 2026 = début de la courbe
 
 function barColor(ratio) {
   return ratio >= 1 ? 'var(--color-negative)' : 'var(--color-accent)'
@@ -77,10 +77,29 @@ export default function OverviewView({ month, onNavigate }) {
     }
   }, [transactions, budgets, month])
 
+  /* Début de la courbe = date de la toute première transaction saisie
+     (« depuis que j'ai commencé à rentrer mes données »). Fallback : aujourd'hui. */
+  const chartStart = useMemo(() => {
+    if (transactions.length === 0) return new Date()
+    let earliest = new Date(transactions[0].date)
+    for (const t of transactions) {
+      const d = new Date(t.date)
+      if (d < earliest) earliest = d
+    }
+    return earliest
+  }, [transactions])
+
   /* Évolution journalière du Pocket Global — ancrée sur la valeur live
      d'aujourd'hui, indépendante du mois affiché. */
   const dailySeries = useMemo(
-    () => trackingDailySeries(transactions, pocketGlobal, CHART_START),
+    () => trackingDailySeries(transactions, pocketGlobal, chartStart),
+    [transactions, pocketGlobal, chartStart],
+  )
+
+  /* Prévisionnel : prolonge la courbe jusqu'à la fin du mois au rythme
+     net moyen constaté depuis le 1er. */
+  const projection = useMemo(
+    () => monthEndProjection(transactions, pocketGlobal),
     [transactions, pocketGlobal],
   )
 
@@ -99,6 +118,16 @@ export default function OverviewView({ month, onNavigate }) {
       />
 
       <div className="space-y-5">
+      {/* En-tête : titre + accès au Conseiller IA */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-xl font-semibold">Vue d'ensemble</h1>
+        <AdvisorModal
+          month={month}
+          pocketGlobal={pocketGlobal}
+          projection={projection}
+        />
+      </div>
+
       {/* Indicateurs clés */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -131,7 +160,7 @@ export default function OverviewView({ month, onNavigate }) {
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <YearlyChart data={dailySeries} />
+          <YearlyChart data={dailySeries} projection={projection} />
         </div>
 
         <div className="flex flex-col gap-5">

@@ -219,13 +219,20 @@ export function trackingDailySeries(
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
+  /* Net (pour la reconstruction) + revenus/dépenses séparés par jour
+     (pour enrichir le tooltip : « pourquoi la courbe a bougé ce jour-là »). */
   const txNet = new Map()
+  const income = new Map()
+  const expense = new Map()
   for (const t of transactions) {
-    const v =
-      t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0
-    if (v === 0) continue
     const k = dayKey(t.date)
-    txNet.set(k, (txNet.get(k) ?? 0) + v)
+    if (t.type === 'income') {
+      income.set(k, (income.get(k) ?? 0) + t.amount)
+      txNet.set(k, (txNet.get(k) ?? 0) + t.amount)
+    } else if (t.type === 'expense') {
+      expense.set(k, (expense.get(k) ?? 0) + t.amount)
+      txNet.set(k, (txNet.get(k) ?? 0) - t.amount)
+    }
   }
 
   const days = []
@@ -242,13 +249,80 @@ export function trackingDailySeries(
     }
   }
 
-  return days.map((d, i) => ({
-    key: dayKey(d),
-    year: d.getFullYear(),
-    month: d.getMonth(),
-    day: d.getDate(),
-    pocketGlobal: pocket[i],
-  }))
+  return days.map((d, i) => {
+    const k = dayKey(d)
+    return {
+      key: k,
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      day: d.getDate(),
+      pocketGlobal: pocket[i],
+      income: income.get(k) ?? 0,
+      expense: expense.get(k) ?? 0,
+    }
+  })
+}
+
+const PROJECTION_WINDOW = 30
+
+/** Prévisionnel : prolonge le Pocket Global jusqu'à la fin du mois de `ref`,
+ *  au rythme net moyen des `PROJECTION_WINDOW` derniers jours glissants. On
+ *  utilise une fenêtre glissante plutôt que « depuis le 1er » pour éviter la
+ *  distorsion de début de mois : un gros débit fixe (loyer le 1er) ne doit
+ *  pas être extrapolé comme un rythme quotidien et faire « plonger » la
+ *  courbe. Le rythme net journalier = (revenus − dépenses sur la fenêtre) /
+ *  nombre de jours de la fenêtre ; on l'ajoute à `endValue` (le Pocket Global
+ *  live d'aujourd'hui) pour chaque jour restant.
+ *  Renvoie :
+ *   - series       : un point par jour APRÈS aujourd'hui { key, year, month,
+ *                    day, projected }, à concaténer après la courbe réelle ;
+ *   - dailyNet     : le rythme net journalier utilisé (peut être négatif) ;
+ *   - projectedEnd : la valeur projetée au dernier jour du mois ;
+ *   - daysRemaining, daysInMonth.
+ *  Note : seul le flux de trésorerie (transactions) est extrapolé — les
+ *  variations de prix crypto ne sont pas projetées. */
+export function monthEndProjection(transactions, endValue, ref = new Date()) {
+  const year = ref.getFullYear()
+  const month = ref.getMonth()
+  const today = ref.getDate()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  /* Net sur la fenêtre glissante [aujourd'hui − (WINDOW−1) ; aujourd'hui]. */
+  const endDay = new Date(year, month, today)
+  const startDay = new Date(year, month, today - PROJECTION_WINDOW + 1)
+  let net = 0
+  for (const t of transactions) {
+    const d = new Date(t.date)
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    if (day < startDay || day > endDay) continue
+    if (t.type === 'income') net += t.amount
+    else if (t.type === 'expense') net -= t.amount
+  }
+
+  const dailyNet = net / PROJECTION_WINDOW
+
+  const dayKey = (dd) =>
+    `${year}-${String(month + 1).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+
+  const series = []
+  for (let dd = today + 1; dd <= daysInMonth; dd++) {
+    series.push({
+      key: dayKey(dd),
+      year,
+      month,
+      day: dd,
+      projected: endValue + dailyNet * (dd - today),
+    })
+  }
+
+  return {
+    series,
+    dailyNet,
+    projectedEnd:
+      series.length > 0 ? series[series.length - 1].projected : endValue,
+    daysRemaining: daysInMonth - today,
+    daysInMonth,
+  }
 }
 
 /** Évolution mensuelle du Pocket Global sur l'année de `ref`.
