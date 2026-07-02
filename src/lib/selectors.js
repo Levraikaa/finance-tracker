@@ -263,21 +263,23 @@ export function trackingDailySeries(
   })
 }
 
-const PROJECTION_WINDOW = 30
+const PROJECTION_MONTHS = 3
 
-/** Prévisionnel : prolonge le Pocket Global jusqu'à la fin du mois de `ref`,
- *  au rythme net moyen des `PROJECTION_WINDOW` derniers jours glissants. On
- *  utilise une fenêtre glissante plutôt que « depuis le 1er » pour éviter la
- *  distorsion de début de mois : un gros débit fixe (loyer le 1er) ne doit
- *  pas être extrapolé comme un rythme quotidien et faire « plonger » la
- *  courbe. Le rythme net journalier = (revenus − dépenses sur la fenêtre) /
- *  nombre de jours de la fenêtre ; on l'ajoute à `endValue` (le Pocket Global
- *  live d'aujourd'hui) pour chaque jour restant.
+/** Prévisionnel : projette le Pocket Global jusqu'à la fin du mois de `ref`
+ *  en visant le résultat d'un mois « type » — la moyenne du net des derniers
+ *  mois COMPLETS (jusqu'à `PROJECTION_MONTHS`). On répartit sur les jours
+ *  restants ce qu'il manque pour atteindre ce net (mois type − net déjà
+ *  réalisé ce mois-ci). Ainsi la courbe reflète un mois normal chez
+ *  l'utilisateur — l'arrivée des revenus comprise — plutôt qu'un rythme moyen
+ *  lissé qui reste à plat quand revenus ≈ dépenses.
+ *  `net` d'un mois = mouvement réel du solde = revenus − dépenses
+ *  (remboursements inclus car ils créditent le compte).
  *  Renvoie :
  *   - series       : un point par jour APRÈS aujourd'hui { key, year, month,
  *                    day, projected }, à concaténer après la courbe réelle ;
- *   - dailyNet     : le rythme net journalier utilisé (peut être négatif) ;
+ *   - dailyNet     : la variation journalière projetée (peut être négative) ;
  *   - projectedEnd : la valeur projetée au dernier jour du mois ;
+ *   - typicalMonthlyNet : le net d'un mois type retenu (pour info) ;
  *   - daysRemaining, daysInMonth.
  *  Note : seul le flux de trésorerie (transactions) est extrapolé — les
  *  variations de prix crypto ne sont pas projetées. */
@@ -286,20 +288,34 @@ export function monthEndProjection(transactions, endValue, ref = new Date()) {
   const month = ref.getMonth()
   const today = ref.getDate()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const curKey = `${year}-${String(month + 1).padStart(2, '0')}`
 
-  /* Net sur la fenêtre glissante [aujourd'hui − (WINDOW−1) ; aujourd'hui]. */
-  const endDay = new Date(year, month, today)
-  const startDay = new Date(year, month, today - PROJECTION_WINDOW + 1)
-  let net = 0
+  /* Net par mois calendaire + net du mois courant réalisé à ce jour. */
+  const netByMonth = new Map()
+  let netSoFar = 0
   for (const t of transactions) {
     const d = new Date(t.date)
-    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    if (day < startDay || day > endDay) continue
-    if (t.type === 'income') net += t.amount
-    else if (t.type === 'expense') net -= t.amount
+    const v =
+      t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0
+    if (v === 0) continue
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    netByMonth.set(k, (netByMonth.get(k) ?? 0) + v)
+    if (k === curKey && d.getDate() <= today) netSoFar += v
   }
 
-  const dailyNet = net / PROJECTION_WINDOW
+  /* Mois « type » = moyenne du net des derniers mois complets (avant le mois
+     courant). Sans historique complet, on extrapole le rythme du mois courant. */
+  const completeKeys = [...netByMonth.keys()].filter((k) => k < curKey).sort()
+  const recent = completeKeys.slice(-PROJECTION_MONTHS)
+  const typicalMonthlyNet = recent.length
+    ? recent.reduce((s, k) => s + netByMonth.get(k), 0) / recent.length
+    : today > 0
+      ? (netSoFar / today) * daysInMonth
+      : 0
+
+  const daysRemaining = daysInMonth - today
+  const remainingNet = typicalMonthlyNet - netSoFar
+  const perDay = daysRemaining > 0 ? remainingNet / daysRemaining : 0
 
   const dayKey = (dd) =>
     `${year}-${String(month + 1).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
@@ -311,16 +327,17 @@ export function monthEndProjection(transactions, endValue, ref = new Date()) {
       year,
       month,
       day: dd,
-      projected: endValue + dailyNet * (dd - today),
+      projected: endValue + perDay * (dd - today),
     })
   }
 
   return {
     series,
-    dailyNet,
+    dailyNet: perDay,
+    typicalMonthlyNet,
     projectedEnd:
       series.length > 0 ? series[series.length - 1].projected : endValue,
-    daysRemaining: daysInMonth - today,
+    daysRemaining,
     daysInMonth,
   }
 }
