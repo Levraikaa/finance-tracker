@@ -3,6 +3,7 @@ import { ArrowRight, TrendingDown, Wallet } from 'lucide-react'
 import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
+import DailyExpenseCard from './DailyExpenseCard.jsx'
 import MonthlyGoalCard from './MonthlyGoalCard.jsx'
 import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
@@ -157,8 +158,9 @@ export default function OverviewView({ month, onNavigate }) {
             <p className="mb-5 text-xs text-muted">Répartition par catégorie</p>
             <CategoryDonut data={stats.breakdown} />
           </div>
-          {/* Moyenne nourriture / jour — basée sur la date du jour */}
+          {/* Moyennes journalières du mois affiché */}
           <FoodAverageCard month={month} />
+          <DailyExpenseCard month={month} />
         </div>
       </div>
 
