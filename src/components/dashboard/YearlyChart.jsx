@@ -46,8 +46,7 @@ const monthFromKey = (key) => MONTH_SHORT[Number(key.slice(5, 7)) - 1]
 function CustomTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null
   const point = payload[0].payload
-  const isProjected = point.pocketGlobal == null
-  const value = isProjected ? point.projected : point.pocketGlobal
+  const moved = point.income > 0 || point.expense > 0
   return (
     <div
       className="font-num"
@@ -70,42 +69,33 @@ function CustomTooltip({ active, payload }) {
         <ArrowUpRight className="h-3.5 w-3.5" style={{ color: MARK }} />
       </div>
       <p className="mt-1 text-sm font-bold tabular-nums text-white">
-        {value == null ? '—' : formatCurrency(value)}
+        {point.pocketGlobal == null ? '—' : formatCurrency(point.pocketGlobal)}
       </p>
-      {isProjected ? (
-        <p
-          className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.5px]"
-          style={{ color: MARK }}
-        >
-          Projeté
-        </p>
-      ) : (
-        (point.income > 0 || point.expense > 0) && (
-          <div className="mt-2 space-y-0.5 border-t border-white/10 pt-1.5 text-[11px]">
-            {point.income > 0 && (
-              <div className="flex items-center justify-between gap-4">
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>Revenus</span>
-                <span
-                  className="font-semibold tabular-nums"
-                  style={{ color: MARK }}
-                >
-                  +{formatCurrency(point.income)}
-                </span>
-              </div>
-            )}
-            {point.expense > 0 && (
-              <div className="flex items-center justify-between gap-4">
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>Dépenses</span>
-                <span
-                  className="font-semibold tabular-nums"
-                  style={{ color: DOWN }}
-                >
-                  −{formatCurrency(point.expense)}
-                </span>
-              </div>
-            )}
-          </div>
-        )
+      {moved && (
+        <div className="mt-2 space-y-0.5 border-t border-white/10 pt-1.5 text-[11px]">
+          {point.income > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Revenus</span>
+              <span
+                className="font-semibold tabular-nums"
+                style={{ color: MARK }}
+              >
+                +{formatCurrency(point.income)}
+              </span>
+            </div>
+          )}
+          {point.expense > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Dépenses</span>
+              <span
+                className="font-semibold tabular-nums"
+                style={{ color: DOWN }}
+              >
+                −{formatCurrency(point.expense)}
+              </span>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
@@ -115,7 +105,6 @@ function CustomTooltip({ active, payload }) {
    dépense) — repère visuel des vraies données parmi la ligne interpolée. */
 function MovementDot({ cx, cy, payload }) {
   if (cx == null || cy == null || !payload) return null
-  if (payload.pocketGlobal == null) return null
   const moved = (payload.income ?? 0) > 0 || (payload.expense ?? 0) > 0
   if (!moved) return null
   return (
@@ -130,7 +119,7 @@ function MovementDot({ cx, cy, payload }) {
   )
 }
 
-export default function YearlyChart({ data, projection }) {
+export default function YearlyChart({ data }) {
   const [range, setRange] = useState('all')
 
   if (!data || data.length === 0) {
@@ -144,49 +133,18 @@ export default function YearlyChart({ data, projection }) {
     )
   }
 
-  /* Points réels (passé → aujourd'hui). On conserve revenus/dépenses du
-     jour pour le tooltip enrichi et les points de mouvement. */
-  const actual = data.map((d) => ({
+  const count = RANGES.find((r) => r.key === range)?.days ?? 31
+  /* On garde au moins 2 points pour qu'une courbe se dessine. */
+  let window = data.slice(-count)
+  if (window.length < 2) window = data.slice(-2)
+
+  const chartData = window.map((d) => ({
     key: d.key,
     fullLabel: `${d.day} ${MONTH_LONG[d.month]} ${d.year}`,
     pocketGlobal: d.pocketGlobal,
-    projected: null,
     income: d.income ?? 0,
     expense: d.expense ?? 0,
   }))
-  /* Points projetés (après aujourd'hui, jusqu'à la fin du mois). */
-  const projPoints = (projection?.series ?? []).map((d) => ({
-    key: d.key,
-    fullLabel: `${d.day} ${MONTH_LONG[d.month]} ${d.year}`,
-    pocketGlobal: null,
-    projected: d.projected,
-  }))
-  const hasProjection = projPoints.length > 0
-
-  const count = RANGES.find((r) => r.key === range)?.days ?? 31
-  /* La projection (jusqu'à la fin du mois) n'est affichée que sur les vues
-     larges ; sur 7 j / 14 j on zoome sur le détail récent réel. */
-  const showProjection = hasProjection && (range === 'all' || range === '30d')
-
-  /* On tranche la fenêtre sur les points RÉELS, puis on ajoute la projection
-     ENTIÈRE après — sinon, sur une courte fenêtre, les jours futurs
-     prendraient toute la place. On garde au moins 2 points. */
-  let actualWindow = actual.slice(-count)
-  if (actualWindow.length < 2) actualWindow = actual.slice(-2)
-
-  if (showProjection && actualWindow.length > 0) {
-    /* Le dernier point réel amorce la courbe projetée (jonction). */
-    const bridge = actualWindow[actualWindow.length - 1]
-    actualWindow = [
-      ...actualWindow.slice(0, -1),
-      { ...bridge, projected: bridge.pocketGlobal },
-    ]
-  }
-
-  const chartData = showProjection
-    ? [...actualWindow, ...projPoints]
-    : actualWindow
-  const projectedEnd = showProjection ? projection.projectedEnd : null
 
   /* Axe X adaptatif : sur une courte fenêtre on étiquette des JOURS
      (ex. « 2 juil »), sinon un repère par MOIS (ex. « Juil »). */
@@ -211,17 +169,14 @@ export default function YearlyChart({ data, projection }) {
     ? (key) => `${Number(key.slice(8, 10))} ${monthFromKey(key).toLowerCase()}`
     : monthFromKey
 
-  /* Domaine Y « zoomé » sur les valeurs réelles + projetées (plutôt que de
-     partir de 0) pour rendre les variations lisibles. Marge de 12 %. */
-  const numeric = chartData
-    .map((d) => (d.pocketGlobal != null ? d.pocketGlobal : d.projected))
-    .filter((v) => v != null)
-  const dMin = numeric.length ? Math.min(...numeric) : 0
-  const dMax = numeric.length ? Math.max(...numeric) : 0
+  /* Domaine Y « zoomé » sur les valeurs (plutôt que de partir de 0) pour
+     rendre les variations lisibles. Marge de 12 %. */
+  const values = chartData.map((d) => d.pocketGlobal).filter((v) => v != null)
+  const dMin = values.length ? Math.min(...values) : 0
+  const dMax = values.length ? Math.max(...values) : 0
   const pad = Math.max((dMax - dMin) * 0.12, 1)
   const yDomain = [Math.floor(dMin - pad), Math.ceil(dMax + pad)]
 
-  const values = chartData.map((d) => d.pocketGlobal).filter((v) => v != null)
   const first = values[0] ?? 0
   const last = values[values.length - 1] ?? 0
   const avg = values.length
@@ -338,25 +293,12 @@ export default function YearlyChart({ data, projection }) {
               connectNulls
               isAnimationActive={false}
             />
-            <Area
-              type="monotone"
-              dataKey="projected"
-              name="Projeté"
-              stroke={MARK}
-              strokeWidth={2}
-              strokeDasharray="6 5"
-              fill="none"
-              dot={false}
-              activeDot={{ r: 4, fill: MARK, stroke: '#fff', strokeWidth: 2 }}
-              connectNulls
-              isAnimationActive={false}
-            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Pied : moyenne + prévision de fin de mois, et légende */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-y-2">
+      {/* Pied : moyenne sur la période + légende */}
+      <div className="mt-3 flex items-center justify-between">
         <p
           className="font-num text-xs tabular-nums"
           style={{ color: 'rgba(255,255,255,0.4)' }}
@@ -365,35 +307,13 @@ export default function YearlyChart({ data, projection }) {
           <span className="font-semibold text-white/70">
             {formatCurrency(avg)}
           </span>
-          {projectedEnd != null && (
-            <>
-              <span className="mx-2 text-white/20">·</span>
-              Fin de mois{' '}
-              <span className="font-semibold" style={{ color: MARK }}>
-                ≈ {formatCurrency(projectedEnd)}
-              </span>
-            </>
-          )}
         </p>
-        <div className="flex items-center gap-4 text-xs">
-          <span className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: WARM }}
-            />
-            <span style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Pocket Global
-            </span>
-          </span>
-          {showProjection && (
-            <span className="flex items-center gap-2">
-              <span
-                className="inline-block h-0 w-3.5"
-                style={{ borderTop: `2px dashed ${MARK}` }}
-              />
-              <span style={{ color: 'rgba(255,255,255,0.55)' }}>Projeté</span>
-            </span>
-          )}
+        <div className="flex items-center gap-2 text-xs">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: WARM }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.55)' }}>Pocket Global</span>
         </div>
       </div>
     </div>

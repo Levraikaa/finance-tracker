@@ -3,10 +3,11 @@ import { useFinance } from '../../context/FinanceContext.jsx'
 import { formatCurrency, monthKey } from '../../lib/format.js'
 
 /* Carte « Moyenne nourriture / jour » — moyenne des dépenses de
-   catégorie « Alimentation » sur le mois courant divisée par le nombre
-   de jours écoulés depuis le 1er du mois. Recalcul automatique chaque
-   jour : on resynchronise l'horloge à minuit. */
-export default function FoodAverageCard() {
+   catégorie « Alimentation » sur le mois AFFICHÉ (`month`), propre à chaque
+   mois. Le diviseur dépend du mois : jours écoulés pour le mois en cours,
+   nombre total de jours pour un mois passé (mois complet). Recalcul chaque
+   jour : on resynchronise l'horloge à minuit pour le mois en cours. */
+export default function FoodAverageCard({ month }) {
   const { transactions } = useFinance()
   const [now, setNow] = useState(() => new Date())
 
@@ -19,7 +20,7 @@ export default function FoodAverageCard() {
   }, [now])
 
   const { total, days, average } = useMemo(() => {
-    const key = monthKey(now)
+    const key = monthKey(month)
     const foodTotal = transactions
       .filter(
         (t) =>
@@ -28,13 +29,21 @@ export default function FoodAverageCard() {
           monthKey(t.date) === key,
       )
       .reduce((s, t) => s + t.amount, 0)
-    const daysElapsed = Math.max(1, now.getDate())
+
+    const y = month.getFullYear()
+    const m = month.getMonth()
+    const isCurrentMonth = y === now.getFullYear() && m === now.getMonth()
+    const daysInMonth = new Date(y, m + 1, 0).getDate()
+    /* Mois en cours → jours écoulés jusqu'à aujourd'hui ; autre mois → mois
+       entier (un mois passé est complet, un mois futur n'a pas de dépense). */
+    const divisor = isCurrentMonth ? Math.max(1, now.getDate()) : daysInMonth
+
     return {
       total: foodTotal,
-      days: daysElapsed,
-      average: foodTotal / daysElapsed,
+      days: divisor,
+      average: foodTotal / divisor,
     }
-  }, [transactions, now])
+  }, [transactions, month, now])
 
   return (
     <div

@@ -18,7 +18,6 @@ import {
   categoryBreakdown,
   delta,
   filterByMonth,
-  monthEndProjection,
   totals,
   trackingDailySeries,
 } from '../../lib/selectors.js'
@@ -100,13 +99,6 @@ export default function OverviewView({ month, onNavigate }) {
     [transactions, pocketGlobal, chartStart],
   )
 
-  /* Prévisionnel : prolonge la courbe jusqu'à la fin du mois au rythme
-     net moyen constaté depuis le 1er. */
-  const projection = useMemo(
-    () => monthEndProjection(transactions, pocketGlobal),
-    [transactions, pocketGlobal],
-  )
-
   const recent = stats.recent
 
   return (
@@ -154,7 +146,7 @@ export default function OverviewView({ month, onNavigate }) {
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <YearlyChart data={dailySeries} projection={projection} />
+          <YearlyChart data={dailySeries} />
         </div>
 
         <div className="flex flex-col gap-5">
@@ -166,7 +158,7 @@ export default function OverviewView({ month, onNavigate }) {
             <CategoryDonut data={stats.breakdown} />
           </div>
           {/* Moyenne nourriture / jour — basée sur la date du jour */}
-          <FoodAverageCard />
+          <FoodAverageCard month={month} />
         </div>
       </div>
 
