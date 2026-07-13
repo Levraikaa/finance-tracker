@@ -29,7 +29,7 @@ const FONDS_MONETAIRES_APY = 0.0219
 /* Liste ordonnée des pockets affichés dans la grille.
    Fonds monétaires : accent orange + APY visible directement sur la card. */
 const POCKET_TILES = [
-  { id: 'cash', name: 'Cash', icon: Banknote, accentColor: '#7C6FFF' },
+  { id: 'cash', name: 'Cash €', icon: Banknote, accentColor: '#7C6FFF' },
   {
     id: 'fondsMonetaires',
     name: 'Fonds monétaires flexibles',

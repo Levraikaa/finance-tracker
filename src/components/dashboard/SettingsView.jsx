@@ -13,10 +13,81 @@ import {
 import CashModal from './CashModal.jsx'
 import CategorySettings from './CategorySettings.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
-import { formatCurrency, formatDate } from '../../lib/format.js'
+import { formatCurrency, formatDate, formatIdr } from '../../lib/format.js'
 
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3.5 py-2.5 pr-9 font-num text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-accent/60'
+
+/* Carte d'un pocket cash (€ ou IDR) — solde, ajout/retrait, historique. */
+function CashPocketCard({ title, balance, formatAmount, movements, onAdd, onRemove }) {
+  return (
+    <div className="rounded-xl border border-line bg-canvas p-4">
+      <div className="flex items-center gap-2">
+        <Banknote className="h-4 w-4 text-accent" />
+        <p className="text-sm font-medium">{title}</p>
+      </div>
+
+      <p className="mt-3 font-num text-2xl font-bold tabular-nums">
+        {formatAmount(balance)}
+      </p>
+
+      <div className="mt-3 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-accent py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dim"
+        >
+          <Plus className="h-4 w-4" />
+          Ajouter du cash
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="inline-flex items-center justify-center gap-1.5 rounded-[10px] border border-line bg-surface py-2.5 text-sm font-semibold transition-colors hover:bg-elevated"
+        >
+          <Minus className="h-4 w-4" />
+          Retirer du cash
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+          Historique
+        </p>
+        {movements.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">Aucun mouvement pour le moment.</p>
+        ) : (
+          <ul className="mt-1 divide-y divide-line-soft">
+            {movements.map((m) => {
+              const add = m.type === 'add'
+              return (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {m.description || (add ? 'Ajout de cash' : 'Retrait de cash')}
+                    </p>
+                    <p className="text-xs text-muted">{formatDate(m.date)}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 font-num text-sm font-semibold tabular-nums ${
+                      add ? 'text-positive' : 'text-negative'
+                    }`}
+                  >
+                    {add ? '+' : '−'}
+                    {formatAmount(m.amount)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function SettingsView() {
   const {
@@ -24,12 +95,15 @@ export default function SettingsView() {
     budgets,
     cashMovements,
     cashBalance,
+    cashIdrMovements,
+    cashIdrBalance,
     startingBalance,
     setStartingBalance,
     resetData,
     clearData,
   } = useFinance()
 
+  /* cashMode = null | { mode: 'add'|'remove', currency: 'EUR'|'IDR' } */
   const [cashMode, setCashMode] = useState(null)
   const [editingBalance, setEditingBalance] = useState(
     () => !startingBalance.date,
@@ -142,78 +216,25 @@ export default function SettingsView() {
             )}
           </div>
 
-          {/* Bloc 2 — Pocket Cash */}
-          <div className="rounded-xl border border-line bg-canvas p-4">
-            <div className="flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-accent" />
-              <p className="text-sm font-medium">Pocket Cash</p>
-            </div>
+          {/* Bloc 2 — Pocket Cash € */}
+          <CashPocketCard
+            title="Pocket Cash €"
+            balance={cashBalance}
+            formatAmount={(v) => formatCurrency(v)}
+            movements={cashMovements}
+            onAdd={() => setCashMode({ mode: 'add', currency: 'EUR' })}
+            onRemove={() => setCashMode({ mode: 'remove', currency: 'EUR' })}
+          />
 
-            <p className="mt-3 font-num text-2xl font-bold tabular-nums">
-              {formatCurrency(cashBalance)}
-            </p>
-
-            <div className="mt-3 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setCashMode('add')}
-                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-accent py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dim"
-              >
-                <Plus className="h-4 w-4" />
-                Ajouter du cash
-              </button>
-              <button
-                type="button"
-                onClick={() => setCashMode('remove')}
-                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] border border-line bg-surface py-2.5 text-sm font-semibold transition-colors hover:bg-elevated"
-              >
-                <Minus className="h-4 w-4" />
-                Retirer du cash
-              </button>
-            </div>
-
-            {/* Historique des mouvements */}
-            <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-faint">
-                Historique
-              </p>
-              {cashMovements.length === 0 ? (
-                <p className="mt-2 text-sm text-muted">
-                  Aucun mouvement pour le moment.
-                </p>
-              ) : (
-                <ul className="mt-1 divide-y divide-line-soft">
-                  {cashMovements.map((m) => {
-                    const add = m.type === 'add'
-                    return (
-                      <li
-                        key={m.id}
-                        className="flex items-center justify-between gap-3 py-2.5"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {m.description ||
-                              (add ? 'Ajout de cash' : 'Retrait de cash')}
-                          </p>
-                          <p className="text-xs text-muted">
-                            {formatDate(m.date)}
-                          </p>
-                        </div>
-                        <span
-                          className={`shrink-0 font-num text-sm font-semibold tabular-nums ${
-                            add ? 'text-positive' : 'text-negative'
-                          }`}
-                        >
-                          {add ? '+' : '−'}
-                          {formatCurrency(m.amount)}
-                        </span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
+          {/* Bloc 3 — Pocket Cash IDR */}
+          <CashPocketCard
+            title="Pocket Cash IDR"
+            balance={cashIdrBalance}
+            formatAmount={formatIdr}
+            movements={cashIdrMovements}
+            onAdd={() => setCashMode({ mode: 'add', currency: 'IDR' })}
+            onRemove={() => setCashMode({ mode: 'remove', currency: 'IDR' })}
+          />
         </div>
       </section>
 
@@ -301,7 +322,11 @@ export default function SettingsView() {
       </section>
 
       {cashMode && (
-        <CashModal mode={cashMode} onClose={() => setCashMode(null)} />
+        <CashModal
+          mode={cashMode.mode}
+          currency={cashMode.currency}
+          onClose={() => setCashMode(null)}
+        />
       )}
     </div>
   )

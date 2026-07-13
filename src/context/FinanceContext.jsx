@@ -82,6 +82,12 @@ export function FinanceProvider({ children }) {
     'kaafinance.cash.v1',
     () => [],
   )
+  /* Cash physique en roupies indonésiennes (IDR) — pocket distinct du cash
+     en euros, pour ne pas mélanger les deux devises. Montants stockés en IDR. */
+  const [cashIdrMovements, setCashIdrMovements] = useLocalStorage(
+    'kaafinance.cashIdr.v1',
+    () => [],
+  )
   /* Solde de départ du compte bancaire { amount, date } — défini dans
      les Paramètres ; base de calcul de toutes les transactions. */
   const [startingBalance, setStartingBalanceState] = useLocalStorage(
@@ -112,14 +118,13 @@ export function FinanceProvider({ children }) {
         ? new Date(data.date).toISOString()
         : new Date().toISOString()
       const id = uid()
-      const method =
-        data.type === 'expense'
-          ? data.paymentMethod === 'cash'
-            ? 'cash'
-            : 'compte'
-          : null
+      const isIncome = data.type === 'income'
+      /* Compte vs cash : moyen de paiement pour une dépense, destination de
+         l'argent pour un revenu. S'applique désormais aux deux. */
+      const method = data.paymentMethod === 'cash' ? 'cash' : 'compte'
       const isCash = method === 'cash' && value > 0
-      const label = data.description?.trim() || 'Dépense'
+      const label =
+        data.description?.trim() || (isIncome ? 'Revenu' : 'Dépense')
 
       setTransactions((prev) =>
         sortByDate([
@@ -131,37 +136,59 @@ export function FinanceProvider({ children }) {
             description: data.description?.trim() || 'Sans description',
             date: stamp,
             ...(data.auto ? { auto: true } : {}),
-            ...(method ? { paymentMethod: method } : {}),
+            paymentMethod: method,
           },
           ...prev,
         ]),
       )
 
       if (isCash) {
+        /* La transaction impacte naturellement le solde bancaire (une dépense
+           le réduit, un revenu l'augmente). L'argent étant en réalité en
+           espèces, on neutralise cet effet sur le compte (toujours en EUR) et
+           on répercute le mouvement sur le bon pocket Cash. Si la saisie est
+           en IDR, on route vers le pocket Cash IDR avec le montant d'origine
+           en roupies (`data.cashAmount`) ; sinon vers le pocket Cash €. */
+        const cashType = isIncome ? 'add' : 'remove'
         setBankAdjustments((prev) => [
           {
             id: uid(),
             txId: id,
-            delta: value,
-            description: `Compensation paiement cash : ${label}`,
+            delta: isIncome ? -value : value,
+            description: `Compensation cash : ${label}`,
             date: stamp,
           },
           ...prev,
         ])
-        setCashMovements((prev) => [
-          {
-            id: uid(),
-            txId: id,
-            type: 'remove',
-            amount: value,
-            description: `Cash : ${label}`,
-            date: stamp,
-          },
-          ...prev,
-        ])
+        if (data.currency === 'IDR') {
+          const idrAmount = Math.abs(Number(data.cashAmount)) || 0
+          setCashIdrMovements((prev) => [
+            {
+              id: uid(),
+              txId: id,
+              type: cashType,
+              amount: idrAmount,
+              description: `Cash IDR : ${label}`,
+              date: stamp,
+            },
+            ...prev,
+          ])
+        } else {
+          setCashMovements((prev) => [
+            {
+              id: uid(),
+              txId: id,
+              type: cashType,
+              amount: value,
+              description: `Cash : ${label}`,
+              date: stamp,
+            },
+            ...prev,
+          ])
+        }
       }
     },
-    [setTransactions, setBankAdjustments, setCashMovements],
+    [setTransactions, setBankAdjustments, setCashMovements, setCashIdrMovements],
   )
 
   /* Débit automatique d'un abonnement : crée la dépense + route le
@@ -229,8 +256,9 @@ export function FinanceProvider({ children }) {
       setTransactions((prev) => prev.filter((t) => t.id !== id))
       setBankAdjustments((prev) => prev.filter((a) => a.txId !== id))
       setCashMovements((prev) => prev.filter((m) => m.txId !== id))
+      setCashIdrMovements((prev) => prev.filter((m) => m.txId !== id))
     },
-    [setTransactions, setBankAdjustments, setCashMovements],
+    [setTransactions, setBankAdjustments, setCashMovements, setCashIdrMovements],
   )
 
   /* Met à jour la note libre d'une transaction (persistée avec la
@@ -332,6 +360,23 @@ export function FinanceProvider({ children }) {
     [setCashMovements],
   )
 
+  /* Mouvement de cash IDR (montant en roupies). */
+  const addCashIdrMovement = useCallback(
+    (data) => {
+      setCashIdrMovements((prev) => [
+        {
+          id: uid(),
+          type: data.type === 'remove' ? 'remove' : 'add',
+          amount: Math.abs(Number(data.amount)) || 0,
+          description: data.description?.trim() || '',
+          date: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+    },
+    [setCashIdrMovements],
+  )
+
   /* Met à jour directement le solde d'un pocket (édition manuelle). */
   const updatePocketAmount = useCallback(
     (key, amount) => {
@@ -371,6 +416,32 @@ export function FinanceProvider({ children }) {
     [setCashMovements],
   )
 
+  /* Force le solde Cash IDR à une valeur cible (montant en roupies). */
+  const setCashIdrBalance = useCallback(
+    (target) => {
+      const value = Math.max(0, Number(target) || 0)
+      setCashIdrMovements((prev) => {
+        const current = prev.reduce(
+          (s, m) => s + (m.type === 'add' ? m.amount : -m.amount),
+          0,
+        )
+        const diff = value - current
+        if (diff === 0) return prev
+        return [
+          {
+            id: uid(),
+            type: diff > 0 ? 'add' : 'remove',
+            amount: Math.abs(diff),
+            description: 'Ajustement manuel du solde',
+            date: new Date().toISOString(),
+          },
+          ...prev,
+        ]
+      })
+    },
+    [setCashIdrMovements],
+  )
+
   /* Enregistre le solde de départ et l'horodate. */
   const setStartingBalance = useCallback(
     (amount) => {
@@ -389,6 +460,16 @@ export function FinanceProvider({ children }) {
         0,
       ),
     [cashMovements],
+  )
+
+  /* Solde du pocket Cash IDR, en roupies. */
+  const cashIdrBalance = useMemo(
+    () =>
+      cashIdrMovements.reduce(
+        (s, m) => s + (m.type === 'add' ? m.amount : -m.amount),
+        0,
+      ),
+    [cashIdrMovements],
   )
 
   const bankAdjustmentsTotal = useMemo(
@@ -468,6 +549,7 @@ export function FinanceProvider({ children }) {
     setPockets(seedPockets())
     setCryptos([])
     setCashMovements([])
+    setCashIdrMovements([])
     setBankAdjustments([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
@@ -476,6 +558,7 @@ export function FinanceProvider({ children }) {
     setPockets,
     setCryptos,
     setCashMovements,
+    setCashIdrMovements,
     setBankAdjustments,
     setStartingBalanceState,
   ])
@@ -486,6 +569,7 @@ export function FinanceProvider({ children }) {
     setPockets(seedPockets())
     setCryptos([])
     setCashMovements([])
+    setCashIdrMovements([])
     setBankAdjustments([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
@@ -494,6 +578,7 @@ export function FinanceProvider({ children }) {
     setPockets,
     setCryptos,
     setCashMovements,
+    setCashIdrMovements,
     setBankAdjustments,
     setStartingBalanceState,
   ])
@@ -506,6 +591,8 @@ export function FinanceProvider({ children }) {
       cryptos,
       cashMovements,
       cashBalance,
+      cashIdrMovements,
+      cashIdrBalance,
       startingBalance,
       bankBalance,
       bankAdjustments,
@@ -521,6 +608,8 @@ export function FinanceProvider({ children }) {
       deleteCrypto,
       addCashMovement,
       setCashBalance,
+      addCashIdrMovement,
+      setCashIdrBalance,
       updatePocketAmount,
       transferFunds,
       setStartingBalance,
@@ -534,6 +623,8 @@ export function FinanceProvider({ children }) {
       cryptos,
       cashMovements,
       cashBalance,
+      cashIdrMovements,
+      cashIdrBalance,
       startingBalance,
       bankBalance,
       bankAdjustments,
@@ -549,6 +640,8 @@ export function FinanceProvider({ children }) {
       deleteCrypto,
       addCashMovement,
       setCashBalance,
+      addCashIdrMovement,
+      setCashIdrBalance,
       updatePocketAmount,
       transferFunds,
       setStartingBalance,

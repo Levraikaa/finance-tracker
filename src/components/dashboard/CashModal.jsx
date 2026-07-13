@@ -5,14 +5,18 @@ import { useFinance } from '../../context/FinanceContext.jsx'
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-accent/60'
 
-/* Modale d'ajout / de retrait de cash. `mode` vaut 'add' ou 'remove'. */
-export default function CashModal({ mode, onClose }) {
-  const { addCashMovement } = useFinance()
+/* Modale d'ajout / de retrait de cash. `mode` vaut 'add' ou 'remove',
+   `currency` vaut 'EUR' (pocket Cash €) ou 'IDR' (pocket Cash IDR). */
+export default function CashModal({ mode, currency = 'EUR', onClose }) {
+  const { addCashMovement, addCashIdrMovement } = useFinance()
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
 
   const isAdd = mode === 'add'
+  const isIdr = currency === 'IDR'
+  const symbol = isIdr ? 'Rp' : '€'
+  const label = isIdr ? 'cash IDR' : 'cash €'
 
   const submit = (e) => {
     e.preventDefault()
@@ -21,7 +25,8 @@ export default function CashModal({ mode, onClose }) {
       setError('Saisissez un montant supérieur à 0.')
       return
     }
-    addCashMovement({ type: mode, amount: value, description })
+    const record = isIdr ? addCashIdrMovement : addCashMovement
+    record({ type: mode, amount: value, description })
     onClose()
   }
 
@@ -29,7 +34,7 @@ export default function CashModal({ mode, onClose }) {
     <Modal
       open
       onClose={onClose}
-      title={isAdd ? 'Ajouter du cash' : 'Retirer du cash'}
+      title={`${isAdd ? 'Ajouter du' : 'Retirer du'} ${label}`}
       description={
         isAdd
           ? 'Enregistrez une entrée d’argent liquide.'
@@ -58,7 +63,7 @@ export default function CashModal({ mode, onClose }) {
               autoFocus
             />
             <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-faint">
-              €
+              {symbol}
             </span>
           </div>
         </div>

@@ -81,7 +81,18 @@ export default function TransactionModal({ open, onClose }) {
       setError('Taux IDR indisponible pour le moment, réessaie dans un instant.')
       return
     }
-    addTransaction({ type, amount: eurAmount, category, description, date, paymentMethod })
+    addTransaction({
+      type,
+      amount: eurAmount,
+      category,
+      description,
+      date,
+      paymentMethod,
+      currency,
+      /* Montant natif à ranger dans le pocket cash : en IDR pour un cash IDR,
+         sinon le montant en euros. */
+      cashAmount: currency === 'IDR' ? rawAmount : eurAmount,
+    })
     reset()
     onClose()
   }
@@ -170,39 +181,49 @@ export default function TransactionModal({ open, onClose }) {
           )}
         </div>
 
-        {/* Moyen de paiement — dépenses uniquement */}
-        {type === 'expense' && (
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Moyen de paiement
-            </label>
-            <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-canvas p-1">
-              {[
-                { id: 'compte', label: 'Compte courant', color: '#7C6FFF' },
-                { id: 'cash', label: 'Cash', color: '#FFB84D' },
-              ].map((opt) => {
-                const active = paymentMethod === opt.id
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(opt.id)}
-                    className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
-                      active ? '' : 'text-muted hover:text-ink'
-                    }`}
-                    style={
-                      active
-                        ? { backgroundColor: `${opt.color}26`, color: opt.color }
-                        : undefined
-                    }
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+        {/* Compte vs cash — moyen de paiement pour une dépense, destination
+            de l'argent reçu pour un revenu. */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">
+            {type === 'income' ? 'Destination' : 'Moyen de paiement'}
+          </label>
+          <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-canvas p-1">
+            {[
+              {
+                id: 'compte',
+                label: type === 'income' ? 'Compte bancaire' : 'Compte courant',
+                color: '#7C6FFF',
+              },
+              { id: 'cash', label: 'Cash', color: '#FFB84D' },
+            ].map((opt) => {
+              const active = paymentMethod === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(opt.id)}
+                  className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
+                    active ? '' : 'text-muted hover:text-ink'
+                  }`}
+                  style={
+                    active
+                      ? { backgroundColor: `${opt.color}26`, color: opt.color }
+                      : undefined
+                  }
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
-        )}
+          {type === 'income' && paymentMethod === 'cash' && (
+            <p className="mt-1.5 text-xs text-muted">
+              Ce revenu ira dans ton pocket Cash{' '}
+              {currency === 'IDR' ? 'IDR' : '€'} et s'ajoutera au cash existant
+              (le compte bancaire n'est pas affecté).
+            </p>
+          )}
+        </div>
 
         {/* Catégorie */}
         <div>

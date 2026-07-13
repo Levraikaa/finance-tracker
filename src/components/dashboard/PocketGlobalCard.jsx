@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Banknote, ChevronDown, Landmark, PiggyBank } from 'lucide-react'
+import { Banknote, ChevronDown, Coins, Landmark, PiggyBank } from 'lucide-react'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
+import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { getPocketDef } from '../../lib/pockets.js'
 import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
-import { formatCurrency } from '../../lib/format.js'
+import { formatCurrency, formatIdr } from '../../lib/format.js'
 
 /* Carte « Pocket Global » — déroule le détail des pockets.
-   Le total agrège : pockets, cash et solde du compte bancaire.
+   Le total agrège : pockets, cash (€ et IDR converti) et solde du compte.
    Pocket Investissement = valeur live du portefeuille crypto. */
 export default function PocketGlobalCard() {
-  const { pockets, cryptos, cashBalance, bankBalance } = useFinance()
+  const { pockets, cryptos, cashBalance, cashIdrBalance, bankBalance } =
+    useFinance()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -25,6 +27,11 @@ export default function PocketGlobalCard() {
     [cryptos, prices],
   )
 
+  /* Cash IDR converti en euros pour le total (taux du jour). */
+  const fx = useIdrRate()
+  const idrRateOk = fx.status === 'ok' && fx.rate > 0
+  const cashIdrEur = idrRateOk ? cashIdrBalance * fx.rate : 0
+
   const rows = [
     ...pockets.map((p) => {
       const def = getPocketDef(p.key)
@@ -35,7 +42,16 @@ export default function PocketGlobalCard() {
         amount: p.key === 'investissement' ? cryptoValue : p.amount,
       }
     }),
-    { key: 'cash', name: 'Pocket Cash', Icon: Banknote, amount: cashBalance },
+    { key: 'cash', name: 'Pocket Cash €', Icon: Banknote, amount: cashBalance },
+    {
+      key: 'cashIdr',
+      name: 'Pocket Cash IDR',
+      sub: idrRateOk
+        ? formatIdr(cashIdrBalance)
+        : `${formatIdr(cashIdrBalance)} · taux indispo.`,
+      Icon: Coins,
+      amount: cashIdrEur,
+    },
     {
       key: 'bank',
       name: 'Solde bancaire',

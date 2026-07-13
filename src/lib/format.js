@@ -17,6 +17,15 @@ export function formatNumber(value, options = {}) {
   return new Intl.NumberFormat('fr-FR', options).format(value)
 }
 
+/** Montant en roupies indonésiennes, ex. « 6 000 000 IDR ». */
+export function formatIdr(value) {
+  return (
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(
+      Math.round(Number(value) || 0),
+    ) + ' IDR'
+  )
+}
+
 export function formatPercent(ratio, digits = 0) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'percent',

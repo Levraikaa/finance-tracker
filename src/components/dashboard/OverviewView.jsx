@@ -10,6 +10,7 @@ import TransactionTable from './TransactionTable.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
+import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
@@ -33,10 +34,14 @@ export default function OverviewView({ month, onNavigate }) {
     pockets,
     cryptos,
     cashBalance,
+    cashIdrBalance,
     bankBalance,
     deleteTransaction,
   } = useFinance()
   const { getDisplay } = useCategoryOverrides()
+  const fx = useIdrRate()
+  const cashIdrEur =
+    fx.status === 'ok' && fx.rate > 0 ? cashIdrBalance * fx.rate : 0
 
   /* Valeur live du portefeuille crypto — utilisée pour reconstruire le
      Pocket Global identique à <PocketGlobalCard />. */
@@ -54,8 +59,8 @@ export default function OverviewView({ month, onNavigate }) {
       (s, p) => s + (p.key === 'investissement' ? cryptoValue : p.amount),
       0,
     )
-    return pocketsTotal + cashBalance + bankBalance
-  }, [pockets, cryptoValue, cashBalance, bankBalance])
+    return pocketsTotal + cashBalance + cashIdrEur + bankBalance
+  }, [pockets, cryptoValue, cashBalance, cashIdrEur, bankBalance])
 
   const stats = useMemo(() => {
     const curKey = monthKey(month)
