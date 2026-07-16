@@ -188,7 +188,7 @@ export default function YearlyChart({ data }) {
 
   return (
     <div
-      className="rounded-2xl border border-line p-4 sm:p-5"
+      className="flex h-full flex-col rounded-2xl border border-line p-4 sm:p-5"
       style={{ background: '#0A0D14' }}
     >
       {/* En-tête : titre + valeur + variation, et sélecteur de période */}
@@ -240,8 +240,8 @@ export default function YearlyChart({ data }) {
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 280 }}>
-        <ResponsiveContainer>
+      <div className="min-h-[280px] flex-1" style={{ width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
             margin={{ top: 8, right: 4, left: 4, bottom: 0 }}
