@@ -6,6 +6,11 @@
    graphiques et des budgets — c'est de l'argent récupéré, pas gagné. */
 export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
 
+/* Catégorie « Dette » : de l'argent prêté à quelqu'un. C'est une dépense
+   (l'argent sort réellement du solde), mais elle crée en plus une entrée
+   dans la liste des dettes (qui te doit combien). */
+export const DEBT_CATEGORY = 'dette'
+
 /* `hidden` = catégorie héritée, conservée pour afficher d'anciennes
    transactions mais retirée des sélecteurs de saisie. */
 export const CATEGORIES = {
@@ -33,6 +38,7 @@ export const CATEGORIES = {
   transport: { label: 'Transport', type: 'expense', icon: 'Car' },
   investissement: { label: 'Investissement', type: 'expense', icon: 'TrendingUp' },
   abonnements: { label: 'Abonnements / Charges', type: 'expense', icon: 'Repeat' },
+  dette: { label: 'Dette', type: 'expense', icon: 'HandCoins' },
   autre: { label: 'Autre achat', type: 'expense', icon: 'ShoppingBag' },
   /* Catégories héritées : on les conserve pour afficher d'anciennes
      transactions, mais elles ne s'affichent plus dans les sélecteurs. */

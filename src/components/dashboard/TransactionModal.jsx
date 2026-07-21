@@ -7,6 +7,7 @@ import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { formatCurrency } from '../../lib/format.js'
 import {
   CATEGORIES,
+  DEBT_CATEGORY,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
 } from '../../lib/categories.js'
@@ -31,8 +32,13 @@ export default function TransactionModal({ open, onClose }) {
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
   const [paymentMethod, setPaymentMethod] = useState('compte')
   const [description, setDescription] = useState('')
+  const [debtPerson, setDebtPerson] = useState('')
   const [date, setDate] = useState(todayISO())
   const [error, setError] = useState('')
+
+  /* Prêt d'argent : la catégorie « Dette » demande le nom de la personne et
+     alimente la liste des dettes en plus de la transaction. */
+  const isDebt = type === 'expense' && category === DEBT_CATEGORY
 
   /* Montant saisi converti en EUR (null si IDR sans taux disponible). */
   const rawAmount = parseFloat(String(amount).replace(',', '.'))
@@ -62,6 +68,7 @@ export default function TransactionModal({ open, onClose }) {
     setCategory(EXPENSE_CATEGORIES[0])
     setPaymentMethod('compte')
     setDescription('')
+    setDebtPerson('')
     setDate(todayISO())
     setError('')
   }
@@ -81,6 +88,10 @@ export default function TransactionModal({ open, onClose }) {
       setError('Taux IDR indisponible pour le moment, réessaie dans un instant.')
       return
     }
+    if (isDebt && !debtPerson.trim()) {
+      setError('Indique à qui tu prêtes cet argent.')
+      return
+    }
     addTransaction({
       type,
       amount: eurAmount,
@@ -92,6 +103,8 @@ export default function TransactionModal({ open, onClose }) {
       /* Montant natif à ranger dans le pocket cash : en IDR pour un cash IDR,
          sinon le montant en euros. */
       cashAmount: currency === 'IDR' ? rawAmount : eurAmount,
+      /* Catégorie « Dette » : crée aussi l'entrée dans la liste des dettes. */
+      debtPerson: isDebt ? debtPerson : '',
     })
     reset()
     onClose()
@@ -252,6 +265,33 @@ export default function TransactionModal({ open, onClose }) {
             })}
           </div>
         </div>
+
+        {/* Catégorie « Dette » : à qui on prête */}
+        {isDebt && (
+          <div>
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              htmlFor="debt-tx-person"
+            >
+              À qui prêtes-tu ?
+            </label>
+            <input
+              id="debt-tx-person"
+              type="text"
+              value={debtPerson}
+              onChange={(e) => {
+                setDebtPerson(e.target.value)
+                setError('')
+              }}
+              placeholder="Ex. Paul"
+              className={FIELD}
+            />
+            <p className="mt-1.5 text-xs text-muted">
+              Le montant sortira de ton solde et cette personne apparaîtra dans
+              tes dettes sur la page d'accueil.
+            </p>
+          </div>
+        )}
 
         {/* Description */}
         <div>

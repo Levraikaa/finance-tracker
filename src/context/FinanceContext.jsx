@@ -3,6 +3,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js'
 import { seedBudgets, seedTransactions } from '../lib/sampleData.js'
 import { adjustPocket, migratePockets, seedPockets } from '../lib/pockets.js'
 import { totals } from '../lib/selectors.js'
+import { DEBT_CATEGORY } from '../lib/categories.js'
 import { uid } from '../lib/format.js'
 
 const FinanceContext = createContext(null)
@@ -101,6 +102,10 @@ export function FinanceProvider({ children }) {
     'kaafinance.bankAdjustments.v1',
     () => [],
   )
+  /* Dettes : les personnes qui doivent de l'argent à l'utilisateur.
+     Suivi purement informatif — n'impacte ni le solde ni les statistiques
+     tant que le remboursement n'est pas saisi comme transaction. */
+  const [debts, setDebts] = useLocalStorage('kaafinance.debts.v1', () => [])
 
   /* Ajoute une transaction et route le solde selon le moyen de paiement.
      Le moyen de paiement ne concerne que les dépenses (un revenu crédite
@@ -141,6 +146,28 @@ export function FinanceProvider({ children }) {
           ...prev,
         ]),
       )
+
+      /* Catégorie « Dette » : l'argent prêté sort bien du solde (c'est une
+         dépense) et on trace en plus qui doit combien. L'entrée est liée par
+         `txId` pour être purgée si la transaction est supprimée. */
+      if (
+        !isIncome &&
+        data.category === DEBT_CATEGORY &&
+        data.debtPerson?.trim() &&
+        value > 0
+      ) {
+        setDebts((prev) => [
+          {
+            id: uid(),
+            txId: id,
+            person: data.debtPerson.trim(),
+            amount: value,
+            note: data.description?.trim() || '',
+            date: stamp,
+          },
+          ...prev,
+        ])
+      }
 
       if (isCash) {
         /* La transaction impacte naturellement le solde bancaire (une dépense
@@ -188,7 +215,13 @@ export function FinanceProvider({ children }) {
         }
       }
     },
-    [setTransactions, setBankAdjustments, setCashMovements, setCashIdrMovements],
+    [
+      setTransactions,
+      setBankAdjustments,
+      setCashMovements,
+      setCashIdrMovements,
+      setDebts,
+    ],
   )
 
   /* Débit automatique d'un abonnement : crée la dépense + route le
@@ -257,8 +290,15 @@ export function FinanceProvider({ children }) {
       setBankAdjustments((prev) => prev.filter((a) => a.txId !== id))
       setCashMovements((prev) => prev.filter((m) => m.txId !== id))
       setCashIdrMovements((prev) => prev.filter((m) => m.txId !== id))
+      setDebts((prev) => prev.filter((d) => d.txId !== id))
     },
-    [setTransactions, setBankAdjustments, setCashMovements, setCashIdrMovements],
+    [
+      setTransactions,
+      setBankAdjustments,
+      setCashMovements,
+      setCashIdrMovements,
+      setDebts,
+    ],
   )
 
   /* Met à jour la note libre d'une transaction (persistée avec la
@@ -358,6 +398,30 @@ export function FinanceProvider({ children }) {
       ])
     },
     [setCashMovements],
+  )
+
+  /* Dettes — quelqu'un me doit de l'argent. */
+  const addDebt = useCallback(
+    (data) => {
+      const value = Math.abs(Number(data.amount)) || 0
+      if (value <= 0) return
+      setDebts((prev) => [
+        {
+          id: uid(),
+          person: data.person?.trim() || 'Sans nom',
+          amount: value,
+          note: data.note?.trim() || '',
+          date: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+    },
+    [setDebts],
+  )
+
+  const deleteDebt = useCallback(
+    (id) => setDebts((prev) => prev.filter((d) => d.id !== id)),
+    [setDebts],
   )
 
   /* Mouvement de cash IDR (montant en roupies). */
@@ -551,6 +615,7 @@ export function FinanceProvider({ children }) {
     setCashMovements([])
     setCashIdrMovements([])
     setBankAdjustments([])
+    setDebts([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
     setTransactions,
@@ -560,6 +625,7 @@ export function FinanceProvider({ children }) {
     setCashMovements,
     setCashIdrMovements,
     setBankAdjustments,
+    setDebts,
     setStartingBalanceState,
   ])
 
@@ -571,6 +637,7 @@ export function FinanceProvider({ children }) {
     setCashMovements([])
     setCashIdrMovements([])
     setBankAdjustments([])
+    setDebts([])
     setStartingBalanceState(EMPTY_BALANCE)
   }, [
     setTransactions,
@@ -580,6 +647,7 @@ export function FinanceProvider({ children }) {
     setCashMovements,
     setCashIdrMovements,
     setBankAdjustments,
+    setDebts,
     setStartingBalanceState,
   ])
 
@@ -596,6 +664,7 @@ export function FinanceProvider({ children }) {
       startingBalance,
       bankBalance,
       bankAdjustments,
+      debts,
       addTransaction,
       recordAutoDebit,
       deleteTransaction,
@@ -610,6 +679,8 @@ export function FinanceProvider({ children }) {
       setCashBalance,
       addCashIdrMovement,
       setCashIdrBalance,
+      addDebt,
+      deleteDebt,
       updatePocketAmount,
       transferFunds,
       setStartingBalance,
@@ -628,6 +699,7 @@ export function FinanceProvider({ children }) {
       startingBalance,
       bankBalance,
       bankAdjustments,
+      debts,
       addTransaction,
       recordAutoDebit,
       deleteTransaction,
@@ -642,6 +714,8 @@ export function FinanceProvider({ children }) {
       setCashBalance,
       addCashIdrMovement,
       setCashIdrBalance,
+      addDebt,
+      deleteDebt,
       updatePocketAmount,
       transferFunds,
       setStartingBalance,

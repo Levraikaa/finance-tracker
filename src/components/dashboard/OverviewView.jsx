@@ -8,14 +8,13 @@ import MonthlyGoalCard from './MonthlyGoalCard.jsx'
 import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
 import TransactionTable from './TransactionTable.jsx'
+import DebtsCard from './DebtsCard.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
-import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
 import { getCryptoMeta, portfolioValue } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent, monthKey } from '../../lib/format.js'
 import {
-  budgetStatus,
   categoryBreakdown,
   delta,
   filterByMonth,
@@ -23,14 +22,9 @@ import {
   trackingDailySeries,
 } from '../../lib/selectors.js'
 
-function barColor(ratio) {
-  return ratio >= 1 ? 'var(--color-negative)' : 'var(--color-accent)'
-}
-
 export default function OverviewView({ month, onNavigate }) {
   const {
     transactions,
-    budgets,
     pockets,
     cryptos,
     cashBalance,
@@ -38,7 +32,6 @@ export default function OverviewView({ month, onNavigate }) {
     bankBalance,
     deleteTransaction,
   } = useFinance()
-  const { getDisplay } = useCategoryOverrides()
   const fx = useIdrRate()
   const cashIdrEur =
     fx.status === 'ok' && fx.rate > 0 ? cashIdrBalance * fx.rate : 0
@@ -76,10 +69,9 @@ export default function OverviewView({ month, onNavigate }) {
       incomeDelta: delta(cur.income, prev.income),
       expenseDelta: delta(cur.expense, prev.expense),
       breakdown: categoryBreakdown(curTx, 'expense'),
-      budgetState: budgetStatus(budgets, transactions, curKey),
       recent: curTx.slice(0, 6),
     }
-  }, [transactions, budgets, month])
+  }, [transactions, month])
 
   /* Début de la courbe = date de la toute première transaction saisie
      (« depuis que j'ai commencé à rentrer mes données »). Fallback : aujourd'hui. */
@@ -164,7 +156,7 @@ export default function OverviewView({ month, onNavigate }) {
         </div>
       </div>
 
-      {/* Transactions + budgets */}
+      {/* Transactions + dettes */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="rounded-2xl border border-line bg-surface lg:col-span-2">
           <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
@@ -189,56 +181,7 @@ export default function OverviewView({ month, onNavigate }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface">
-          <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
-            <h2 className="font-display text-base font-semibold">Budgets</h2>
-            <button
-              type="button"
-              onClick={() => onNavigate('budgets')}
-              className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
-            >
-              Gérer
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="space-y-4 p-5">
-            {stats.budgetState.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted">
-                Aucun budget défini.
-              </p>
-            )}
-            {stats.budgetState.slice(0, 5).map((b) => {
-              const disp = getDisplay(b.category)
-              const color = disp.color
-              return (
-                <div key={b.id}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-[3px]"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span style={{ color }}>{disp.name}</span>
-                    </span>
-                    <span className="font-num tabular-nums text-muted">
-                      {formatCurrency(b.spent, { compact: true })} /{' '}
-                      {formatCurrency(b.limit, { compact: true })}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-elevated">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(b.ratio, 1) * 100}%`,
-                        backgroundColor: color,
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <DebtsCard />
       </div>
       </div>
     </div>
