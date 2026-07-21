@@ -146,7 +146,7 @@ export default function SettingsView() {
   }
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-5xl space-y-5">
       {/* Mes liquidités */}
       <section className="rounded-2xl border border-line bg-surface p-6">
         <div className="flex items-center gap-3">
@@ -163,7 +163,7 @@ export default function SettingsView() {
           </div>
         </div>
 
-        <div className="mt-5 grid items-start gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Bloc 1 — Solde bancaire */}
           <div className="rounded-xl border border-line bg-canvas p-4">
             <div className="flex items-center gap-2">
