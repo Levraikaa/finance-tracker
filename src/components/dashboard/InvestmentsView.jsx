@@ -24,7 +24,9 @@ import { useCryptoPrices } from '../../hooks/useCryptoPrices.js'
 import { getCryptoMeta, stakingInterest } from '../../lib/cryptos.js'
 import { formatCurrency, formatPercent } from '../../lib/format.js'
 
-const FONDS_MONETAIRES_APY = 0.0219
+/* APY par défaut du fonds monétaire flexible — éditable ensuite dans l'UI
+   (persisté dans localStorage), car le taux bouge régulièrement. */
+const DEFAULT_FONDS_APY = 0.0219
 
 /* Liste ordonnée des pockets affichés dans la grille.
    Fonds monétaires : accent orange + APY visible directement sur la card. */
@@ -43,9 +45,9 @@ const POCKET_TILES = [
 
 /* Tuile cliquable d'un pocket — nom + solde, et un état sélectionné.
    Pour Fonds monétaires flexibles : accent orange et APY toujours visibles. */
-function PocketTile({ icon: Icon, name, amount, selected, onSelect, accentColor, apy }) {
-  const monthly = apy ? amount * FONDS_MONETAIRES_APY / 12 : 0
-  const yearly = apy ? amount * FONDS_MONETAIRES_APY : 0
+function PocketTile({ icon: Icon, name, amount, selected, onSelect, accentColor, apy, apyRate = 0 }) {
+  const monthly = apy ? (amount * apyRate) / 12 : 0
+  const yearly = apy ? amount * apyRate : 0
   return (
     <button
       type="button"
@@ -86,7 +88,7 @@ function PocketTile({ icon: Icon, name, amount, selected, onSelect, accentColor,
               className="font-num font-bold tabular-nums"
               style={{ color: '#F97316' }}
             >
-              {formatPercent(FONDS_MONETAIRES_APY, 2)}
+              {formatPercent(apyRate, 2)}
             </dd>
           </div>
           <div className="flex items-center justify-between">
@@ -124,9 +126,13 @@ function PocketDetailPanel({
   amount,
   onSave,
   onTransfer,
+  apyRate = 0,
+  onSaveApy,
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [apyEditing, setApyEditing] = useState(false)
+  const [apyDraft, setApyDraft] = useState('')
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -140,7 +146,28 @@ function PocketDetailPanel({
   useEffect(() => {
     setEditing(false)
     setDraft('')
+    setApyEditing(false)
+    setApyDraft('')
   }, [pocket?.id])
+
+  const startApyEdit = () => {
+    setApyDraft(String(Math.round(apyRate * 10000) / 100))
+    setApyEditing(true)
+  }
+  const commitApy = () => {
+    const pct = parseFloat(String(apyDraft).replace(',', '.'))
+    if (Number.isFinite(pct) && pct >= 0) onSaveApy?.(pct / 100)
+    setApyEditing(false)
+  }
+  const apyKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitApy()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setApyEditing(false)
+    }
+  }
 
   if (!pocket) return null
 
@@ -236,6 +263,69 @@ function PocketDetailPanel({
           Transférer
         </button>
       </div>
+
+      {/* Édition du taux APY — fonds monétaire uniquement. */}
+      {pocket.apy && (
+        <div className="mt-5 border-t border-white/5 pt-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                Taux APY
+              </p>
+              {apyEditing ? (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      value={apyDraft}
+                      onChange={(e) => setApyDraft(e.target.value)}
+                      onKeyDown={apyKeyDown}
+                      onBlur={commitApy}
+                      autoFocus
+                      className="w-28 rounded-lg border border-accent/40 bg-canvas px-3 py-1.5 pr-7 font-num text-lg font-bold text-ink outline-none transition-colors focus:border-accent"
+                    />
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-faint">
+                      %
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={commitApy}
+                    aria-label="Valider le taux"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent text-white transition-colors hover:bg-accent-dim"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <p
+                  className="mt-0.5 font-num text-2xl font-bold tabular-nums"
+                  style={{ color: '#F97316' }}
+                >
+                  {formatPercent(apyRate, 2)}
+                </p>
+              )}
+            </div>
+            {!apyEditing && (
+              <button
+                type="button"
+                onClick={startApyEdit}
+                className="inline-flex items-center gap-1.5 rounded-[10px] border border-line bg-canvas px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-elevated"
+              >
+                <Pencil className="h-4 w-4" />
+                Modifier le taux
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            Sert à estimer tes intérêts mensuels et annuels sur ce pocket.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -304,6 +394,11 @@ export default function InvestmentsView() {
     updatePocketAmount,
   } = useFinance()
   const [history, setHistory] = useLocalStorage('kaafinance.cryptoHistory.v2', [])
+  /* Taux APY du fonds monétaire flexible — éditable, persisté. */
+  const [fondsApy, setFondsApy] = useLocalStorage(
+    'kaafinance.fondsApy.v1',
+    DEFAULT_FONDS_APY,
+  )
   const [modal, setModal] = useState(null)
   const [buyMore, setBuyMore] = useState(null)
   const [transferTo, setTransferTo] = useState(null)
@@ -468,6 +563,7 @@ export default function InvestmentsView() {
                   selected={selectedPocket === p.id}
                   accentColor={p.accentColor}
                   apy={p.apy}
+                  apyRate={fondsApy}
                   onSelect={() =>
                     setSelectedPocket((prev) => (prev === p.id ? null : p.id))
                   }
@@ -480,6 +576,8 @@ export default function InvestmentsView() {
                 amount={pocketBalance(selected.id)}
                 onSave={(v) => savePocket(selected.id, v)}
                 onTransfer={() => setTransferTo(selected.id)}
+                apyRate={fondsApy}
+                onSaveApy={setFondsApy}
               />
             )}
           </div>
