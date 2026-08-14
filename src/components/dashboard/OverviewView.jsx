@@ -4,6 +4,7 @@ import StatCard from './StatCard.jsx'
 import PocketGlobalCard from './PocketGlobalCard.jsx'
 import FoodAverageCard from './FoodAverageCard.jsx'
 import DailyExpenseCard from './DailyExpenseCard.jsx'
+import MonthComparisonCard from './MonthComparisonCard.jsx'
 import MonthlyGoalCard from './MonthlyGoalCard.jsx'
 import YearlyChart from './YearlyChart.jsx'
 import CategoryDonut from './CategoryDonut.jsx'
@@ -135,6 +136,9 @@ export default function OverviewView({ month, onNavigate }) {
           }}
         />
       </div>
+
+      {/* Comparateur : où j'en étais il y a un mois */}
+      <MonthComparisonCard pocketGlobal={pocketGlobal} />
 
       {/* Graphique + répartition */}
       <div className="grid gap-5 lg:grid-cols-3">

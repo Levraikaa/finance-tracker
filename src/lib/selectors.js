@@ -346,3 +346,70 @@ export function delta(current, previous) {
   if (!previous) return current > 0 ? 1 : 0
   return (current - previous) / Math.abs(previous)
 }
+
+/** Comparateur « il y a un mois » : reconstitue le solde bancaire et le
+ *  Pocket Global à la même date le mois précédent, pour les comparer à
+ *  aujourd'hui.
+ *  - Le solde bancaire est EXACT : solde de départ + net des transactions
+ *    (revenus − dépenses) + ajustements internes, jusqu'à la date cible.
+ *  - Le Pocket Global « d'alors » est reconstitué en retirant de la valeur
+ *    live le net des transactions postérieures à la date cible (mêmes limites
+ *    que la courbe : les variations de prix crypto / éditions manuelles de
+ *    pockets ne sont pas rembobinées).
+ *  Renvoie { targetDate, bankNow, bankThen, bankDelta, pgNow, pgThen,
+ *  pgDelta, hasHistory }. */
+export function monthAgoComparison(
+  transactions,
+  bankAdjustments,
+  startingBalance,
+  pocketGlobalNow,
+  ref = new Date(),
+) {
+  const y = ref.getFullYear()
+  const m = ref.getMonth()
+  /* Même jour le mois précédent, borné au dernier jour de ce mois. */
+  const prevMonthDays = new Date(y, m, 0).getDate()
+  const targetDay = Math.min(ref.getDate(), prevMonthDays)
+  const targetDate = new Date(y, m - 1, targetDay)
+  const targetEnd = new Date(y, m - 1, targetDay, 23, 59, 59, 999)
+
+  const start = startingBalance?.amount ?? 0
+
+  let txNetUpToTarget = 0
+  let txNetTotal = 0
+  for (const t of transactions) {
+    const v = t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0
+    if (v === 0) continue
+    txNetTotal += v
+    if (new Date(t.date) <= targetEnd) txNetUpToTarget += v
+  }
+
+  let adjUpToTarget = 0
+  let adjTotal = 0
+  for (const a of bankAdjustments ?? []) {
+    const d = Number(a.delta) || 0
+    adjTotal += d
+    if (new Date(a.date) <= targetEnd) adjUpToTarget += d
+  }
+
+  const bankNow = start + txNetTotal + adjTotal
+  const bankThen = start + txNetUpToTarget + adjUpToTarget
+  const pgThen = pocketGlobalNow - (txNetTotal - txNetUpToTarget)
+
+  const startDate = startingBalance?.date ? new Date(startingBalance.date) : null
+  const hasHistory =
+    txNetUpToTarget !== 0 ||
+    adjUpToTarget !== 0 ||
+    (startDate != null && startDate <= targetEnd)
+
+  return {
+    targetDate,
+    bankNow,
+    bankThen,
+    bankDelta: bankNow - bankThen,
+    pgNow: pocketGlobalNow,
+    pgThen,
+    pgDelta: pocketGlobalNow - pgThen,
+    hasHistory,
+  }
+}
