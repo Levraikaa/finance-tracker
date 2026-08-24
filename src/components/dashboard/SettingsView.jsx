@@ -10,6 +10,7 @@ import {
   Trash2,
   Wallet,
 } from 'lucide-react'
+import BackupSection from './BackupSection.jsx'
 import CashModal from './CashModal.jsx'
 import CategorySettings from './CategorySettings.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
@@ -292,6 +293,9 @@ export default function SettingsView() {
           </button>
         </div>
       </section>
+
+      {/* Sauvegarde des données */}
+      <BackupSection />
 
       {/* À propos */}
       <section className="rounded-2xl border border-line bg-surface p-6">
