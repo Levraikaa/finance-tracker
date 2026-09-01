@@ -11,6 +11,8 @@ export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
    compte, mais ce n'est pas une vraie dépense — donc exclue des stats,
    des graphiques de dépenses, du camembert et des budgets. */
 export const ADJUSTMENT_CATEGORY = 'ajustement'
+/* Pendant côté revenu : recaler le solde vers le haut. */
+export const ADJUSTMENT_INCOME_CATEGORY = 'ajustementRecu'
 
 /* Catégorie « Dette » : de l'argent prêté à quelqu'un. C'est une dépense
    (l'argent sort réellement du solde), mais elle crée en plus une entrée
@@ -30,6 +32,12 @@ export const CATEGORIES = {
     excludedFromStats: true,
   },
   autres: { label: 'Autre', type: 'income', icon: 'CircleDashed' },
+  ajustementRecu: {
+    label: 'Ajustement',
+    type: 'income',
+    icon: 'SlidersHorizontal',
+    excludedFromStats: true,
+  },
   salaire: { label: 'Salaire', type: 'income', icon: 'Wallet', hidden: true },
   remboursement: {
     label: 'Remboursement',
@@ -88,5 +96,8 @@ export function isReimbursement(category) {
 /* True si la transaction est un simple recalage de solde : elle bouge le
    solde bancaire mais ne compte pas comme une dépense. */
 export function isAdjustment(category) {
-  return category === ADJUSTMENT_CATEGORY
+  return (
+    category === ADJUSTMENT_CATEGORY ||
+    category === ADJUSTMENT_INCOME_CATEGORY
+  )
 }

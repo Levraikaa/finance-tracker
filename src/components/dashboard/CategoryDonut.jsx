@@ -76,7 +76,10 @@ export default function CategoryDonut({ data }) {
         </div>
       </div>
 
-      <ul className="w-full space-y-2.5">
+      {/* `min-w-0` est indispensable : sans lui un enfant flex refuse de
+          passer sous la largeur de son contenu, la légende pousse la carte
+          et le libellé déborde au lieu d'être tronqué. */}
+      <ul className="w-full min-w-0 flex-1 space-y-2.5">
         {data.map((d, i) => {
           const disp = getDisplay(d.category)
           return (
@@ -90,7 +93,7 @@ export default function CategoryDonut({ data }) {
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: disp.color }}
             />
-            <span className="flex-1 truncate text-sm text-ink">
+            <span className="min-w-0 flex-1 truncate text-sm text-ink">
               {disp.name}
             </span>
             <span className="font-num text-sm tabular-nums text-muted">

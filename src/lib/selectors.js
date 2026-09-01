@@ -12,13 +12,22 @@ export function filterByMonth(transactions, key) {
 /* « Vrai » revenu : exclut la catégorie Remboursement reçu, qui crédite
    bien le solde mais n'est pas considérée comme un revenu. */
 const isRealIncome = (t) =>
-  t.type === 'income' && !isReimbursement(t.category)
+  t.type === 'income' &&
+  !isReimbursement(t.category) &&
+  !isAdjustment(t.category)
 
 /* « Vraie » dépense : exclut les ajustements de solde, qui débitent bien le
    compte mais ne sont pas de l'argent dépensé. */
 const isRealExpense = (t) => t.type === 'expense' && !isAdjustment(t.category)
 
-const isAdjustmentTx = (t) => t.type === 'expense' && isAdjustment(t.category)
+/* Effet net des ajustements sur le solde : ceux en revenu créditent,
+   ceux en dépense débitent. Tenus hors de toutes les statistiques. */
+const adjustmentNet = (transactions) =>
+  sum(
+    transactions
+      .filter((t) => isAdjustment(t.category))
+      .map((t) => (t.type === 'income' ? t.amount : -t.amount)),
+  )
 
 export function totals(transactions) {
   const income = sum(
@@ -32,13 +41,11 @@ export function totals(transactions) {
   const expense = sum(
     transactions.filter(isRealExpense).map((t) => t.amount),
   )
-  const adjustment = sum(
-    transactions.filter(isAdjustmentTx).map((t) => t.amount),
-  )
-  /* Le solde inclut les remboursements (ils créditent réellement le compte)
-     et les ajustements (ils débitent réellement le compte), même s'ils sont
-     tenus hors des statistiques de revenus / dépenses. */
-  const net = income + reimbursement - expense - adjustment
+  const adjustment = adjustmentNet(transactions)
+  /* Le solde inclut les remboursements et les ajustements : ils bougent
+     réellement le compte, même s'ils sont tenus hors des statistiques de
+     revenus / dépenses. */
+  const net = income + reimbursement - expense + adjustment
   return {
     income,
     reimbursement,
@@ -74,8 +81,7 @@ export function monthlySeries(transactions, n = 6, ref = new Date()) {
         .map((t) => t.amount),
     )
     const expense = sum(inMonth.filter(isRealExpense).map((t) => t.amount))
-    const adjustment = sum(inMonth.filter(isAdjustmentTx).map((t) => t.amount))
-    running += income + reimbursement - expense - adjustment
+    running += income + reimbursement - expense + adjustmentNet(inMonth)
     return {
       key,
       date,
@@ -166,7 +172,9 @@ export function trackingMonthlySeries(
     const d = new Date(t.date)
     const k = monthKey(d)
     if (t.type === 'income') {
-      if (!isReimbursement(t.category)) {
+      /* Un ajustement crédite bien le compte (txNet) mais n'est pas un
+         revenu au sens des statistiques. */
+      if (!isReimbursement(t.category) && !isAdjustment(t.category)) {
         revenus.set(k, (revenus.get(k) ?? 0) + t.amount)
       }
       txNet.set(k, (txNet.get(k) ?? 0) + t.amount)
