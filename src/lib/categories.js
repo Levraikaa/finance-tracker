@@ -6,6 +6,12 @@
    graphiques et des budgets — c'est de l'argent récupéré, pas gagné. */
 export const REIMBURSEMENT_CATEGORY = 'remboursementRecu'
 
+/* Catégorie « Ajustement » : sert à recaler le solde sur la réalité
+   (erreur de saisie, arrondi, correction). L'argent bouge bien sur le
+   compte, mais ce n'est pas une vraie dépense — donc exclue des stats,
+   des graphiques de dépenses, du camembert et des budgets. */
+export const ADJUSTMENT_CATEGORY = 'ajustement'
+
 /* Catégorie « Dette » : de l'argent prêté à quelqu'un. C'est une dépense
    (l'argent sort réellement du solde), mais elle crée en plus une entrée
    dans la liste des dettes (qui te doit combien). */
@@ -40,6 +46,12 @@ export const CATEGORIES = {
   abonnements: { label: 'Abonnements / Charges', type: 'expense', icon: 'Repeat' },
   dette: { label: 'Dette', type: 'expense', icon: 'HandCoins' },
   autre: { label: 'Autre achat', type: 'expense', icon: 'ShoppingBag' },
+  ajustement: {
+    label: 'Ajustement',
+    type: 'expense',
+    icon: 'SlidersHorizontal',
+    excludedFromStats: true,
+  },
   /* Catégories héritées : on les conserve pour afficher d'anciennes
      transactions, mais elles ne s'affichent plus dans les sélecteurs. */
   logement: { label: 'Logement', type: 'expense', icon: 'House', hidden: true },
@@ -58,6 +70,11 @@ export const EXPENSE_CATEGORIES = CATEGORY_KEYS.filter(
   (k) => CATEGORIES[k].type === 'expense',
 )
 
+/* Catégories budgétables : on retire les recalages de solde. */
+export const BUDGETABLE_CATEGORIES = EXPENSE_CATEGORIES.filter(
+  (k) => !CATEGORIES[k].excludedFromStats,
+)
+
 export function getCategory(key) {
   return CATEGORIES[key] ?? CATEGORIES.autre
 }
@@ -66,4 +83,10 @@ export function getCategory(key) {
    (exclue des stats, graphiques de revenus et budgets). */
 export function isReimbursement(category) {
   return category === REIMBURSEMENT_CATEGORY
+}
+
+/* True si la transaction est un simple recalage de solde : elle bouge le
+   solde bancaire mais ne compte pas comme une dépense. */
+export function isAdjustment(category) {
+  return category === ADJUSTMENT_CATEGORY
 }

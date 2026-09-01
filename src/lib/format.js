@@ -69,6 +69,34 @@ export function monthKey(date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Parse une chaîne « YYYY-MM-DD » en Date locale (minuit local).
+    `new Date("2026-09-01")` serait interprété en UTC, donc décalé d'un jour
+    pour une bonne partie des fuseaux. */
+export function parseLocalDay(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? '').trim())
+  if (!m) return new Date(value)
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+/** Date du jour au format « YYYY-MM-DD », en heure locale. */
+export function todayKey(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** Convertit une saisie de date en horodatage ISO.
+    Une chaîne « YYYY-MM-DD » est lue en heure locale et complétée par
+    l'heure courante, pour que la transaction reste rattachée au jour choisi
+    et s'ordonne correctement parmi celles du même jour. */
+export function toStamp(value) {
+  if (!value) return new Date().toISOString()
+  const day = parseLocalDay(value)
+  if (Number.isNaN(day.getTime())) return new Date().toISOString()
+  const now = new Date()
+  day.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0)
+  return day.toISOString()
+}
+
 /** Génère un id court unique. */
 export function uid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()

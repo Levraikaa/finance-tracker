@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Modal from '../ui/Modal.jsx'
 import DatePicker from './DatePicker.jsx'
+import { todayKey } from '../../lib/format.js'
 import CategoryIcon from '../ui/CategoryIcon.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useIdrRate } from '../../hooks/useIdrRate.js'
@@ -12,7 +13,10 @@ import {
   INCOME_CATEGORIES,
 } from '../../lib/categories.js'
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
+/* Date du jour en heure LOCALE. `toISOString()` renverrait la date UTC,
+   qui est encore la veille pour tout fuseau en avance sur UTC en début de
+   journée — la transaction atterrissait alors dans le mois précédent. */
+const todayISO = () => todayKey()
 
 /* Devises saisissables. Tout est stocké en EUR : un montant en IDR est
    converti au taux du jour (useIdrRate) au moment de l'enregistrement,
@@ -23,7 +27,7 @@ const CURRENCY_SYMBOL = { EUR: '€', IDR: 'Rp' }
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-accent/60'
 
-export default function TransactionModal({ open, onClose }) {
+export default function TransactionModal({ open, onClose, onAdded }) {
   const { addTransaction } = useFinance()
   const fx = useIdrRate()
   const [type, setType] = useState('expense')
@@ -107,6 +111,9 @@ export default function TransactionModal({ open, onClose }) {
       debtPerson: isDebt ? debtPerson : '',
     })
     reset()
+    /* Prévient le parent du jour saisi : la vue doit basculer sur ce mois,
+       sinon la transaction est ajoutée mais invisible dans la liste. */
+    onAdded?.(date)
     onClose()
   }
 

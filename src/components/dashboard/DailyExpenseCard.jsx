@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { formatCurrency, monthKey } from '../../lib/format.js'
+import { isAdjustment } from '../../lib/categories.js'
 
 /* Carte « Moyenne dépense / jour » — total des dépenses du mois AFFICHÉ
    (`month`) divisé par le nombre de jours : jours écoulés pour le mois en
@@ -22,7 +23,12 @@ export default function DailyExpenseCard({ month }) {
   const { total, days, average } = useMemo(() => {
     const key = monthKey(month)
     const spent = transactions
-      .filter((t) => t.type === 'expense' && monthKey(t.date) === key)
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !isAdjustment(t.category) &&
+          monthKey(t.date) === key,
+      )
       .reduce((s, t) => s + t.amount, 0)
 
     const y = month.getFullYear()

@@ -5,7 +5,7 @@ import SubscriptionsSection from './SubscriptionsSection.jsx'
 import { useFinance } from '../../context/FinanceContext.jsx'
 import { useCategoryOverrides } from '../../context/CategoryOverridesContext.jsx'
 import { useUpcomingSubscriptions } from '../../hooks/useUpcomingSubscriptions.js'
-import { EXPENSE_CATEGORIES, getCategory } from '../../lib/categories.js'
+import { BUDGETABLE_CATEGORIES, getCategory } from '../../lib/categories.js'
 import { formatCurrency, formatDate, formatPercent, monthKey } from '../../lib/format.js'
 import { budgetStatus } from '../../lib/selectors.js'
 import {
@@ -122,7 +122,7 @@ export default function BudgetsView({ month }) {
   const { budgets, transactions, upsertBudget, deleteBudget } = useFinance()
   const { getDisplay } = useCategoryOverrides()
   const upcoming = useUpcomingSubscriptions()
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
+  const [category, setCategory] = useState(BUDGETABLE_CATEGORIES[0])
   const [limit, setLimit] = useState('')
 
   const curKey = monthKey(month)
@@ -306,7 +306,7 @@ export default function BudgetsView({ month }) {
             onChange={(e) => pickCategory(e.target.value)}
             className="rounded-lg border border-line bg-canvas px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent/60 sm:flex-1 [color-scheme:dark]"
           >
-            {EXPENSE_CATEGORIES.map((key) => (
+            {BUDGETABLE_CATEGORIES.map((key) => (
               <option key={key} value={key}>
                 {getDisplay(key).name}
               </option>

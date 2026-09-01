@@ -4,7 +4,7 @@ import { seedBudgets, seedTransactions } from '../lib/sampleData.js'
 import { adjustPocket, migratePockets, seedPockets } from '../lib/pockets.js'
 import { totals } from '../lib/selectors.js'
 import { DEBT_CATEGORY } from '../lib/categories.js'
-import { uid } from '../lib/format.js'
+import { toStamp, uid } from '../lib/format.js'
 
 const FinanceContext = createContext(null)
 
@@ -119,9 +119,9 @@ export function FinanceProvider({ children }) {
   const addTransaction = useCallback(
     (data) => {
       const value = Math.abs(Number(data.amount)) || 0
-      const stamp = data.date
-        ? new Date(data.date).toISOString()
-        : new Date().toISOString()
+      /* `new Date("2026-09-01")` serait lu en UTC : la transaction pouvait
+         basculer sur le mois précédent. toStamp lit la date en local. */
+      const stamp = toStamp(data.date)
       const id = uid()
       const isIncome = data.type === 'income'
       /* Compte vs cash : moyen de paiement pour une dépense, destination de
