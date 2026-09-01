@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Navbar from '../components/dashboard/Navbar.jsx'
+import BottomNav from '../components/dashboard/BottomNav.jsx'
 import OverviewView from '../components/dashboard/OverviewView.jsx'
 import TransactionsView from '../components/dashboard/TransactionsView.jsx'
 import BudgetsView from '../components/dashboard/BudgetsView.jsx'
@@ -7,6 +8,7 @@ import InvestmentsView from '../components/dashboard/InvestmentsView.jsx'
 import SettingsView from '../components/dashboard/SettingsView.jsx'
 import TransactionModal from '../components/dashboard/TransactionModal.jsx'
 import { useSubscriptionAutoDebit } from '../hooks/useSubscriptionAutoDebit.js'
+import { useUpcomingSubscriptions } from '../hooks/useUpcomingSubscriptions.js'
 import { parseLocalDay } from '../lib/format.js'
 
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1)
@@ -18,6 +20,7 @@ export default function Dashboard() {
 
   /* Vérifie les abonnements à débiter à chaque chargement. */
   useSubscriptionAutoDebit()
+  const upcomingCount = useUpcomingSubscriptions().length
 
   useEffect(() => {
     document.title = 'KAAFINANCE — Suivi financier'
@@ -58,7 +61,7 @@ export default function Dashboard() {
         onAdd={openModal}
       />
 
-      <main className="px-5 pb-12 pt-24 sm:px-8">
+      <main className="px-5 pb-28 pt-24 sm:px-8 lg:pb-12">
         {view === 'overview' && (
           <OverviewView month={month} onNavigate={setView} />
         )}
@@ -69,6 +72,8 @@ export default function Dashboard() {
         {view === 'investments' && <InvestmentsView />}
         {view === 'settings' && <SettingsView />}
       </main>
+
+      <BottomNav view={view} onChange={setView} upcomingCount={upcomingCount} />
 
       <TransactionModal
         open={modalOpen}

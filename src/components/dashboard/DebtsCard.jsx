@@ -47,7 +47,7 @@ export default function DebtsCard() {
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface">
+    <div className="min-w-0 rounded-2xl border border-line bg-surface">
       <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
         <h2 className="font-display text-base font-semibold">Dettes</h2>
         <button

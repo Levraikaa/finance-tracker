@@ -161,8 +161,12 @@ export default function OverviewView({ month, onNavigate }) {
       </div>
 
       {/* Transactions + dettes */}
+      {/* `min-w-0` sur les enfants : un élément de grille refuse par défaut
+          de passer sous la largeur intrinsèque de son contenu — le tableau
+          des transactions élargissait la carte et faisait scroller la page
+          horizontalement sur mobile. */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="rounded-2xl border border-line bg-surface lg:col-span-2">
+        <div className="min-w-0 rounded-2xl border border-line bg-surface lg:col-span-2">
           <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
             <h2 className="font-display text-base font-semibold">
               Transactions récentes
